@@ -1,0 +1,887 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Deep Packet Dive</title>
+<meta name="description" content="Dive 7,000 meters into the network ocean. Type one answer per question. Rarer answers dive deeper.">
+<style>:root{color-scheme:dark}
+:root{
+  --ink:#06142e; --ink2:#0b2250; --glass:rgba(6,20,48,.84); --line:rgba(190,235,255,.28);
+  --txt:#f2fbff; --dim:#a9cde0; --coral:#ff6b5a; --amber:#ffb23c; --aqua:#59e6ff; --lime:#8dff7a;
+  --t0:#7ee081; --t1:#4cc9f0; --t2:#ffd23f; --t3:#ff9f1c; --t4:#ff4d6d; --t5:#c77dff;
+  --disp:"Arial Rounded MT Bold","Nunito","Trebuchet MS","Segoe UI",system-ui,sans-serif;
+  --body:"Trebuchet MS","Segoe UI",Verdana,system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:#0b2250;color:var(--txt);font-family:var(--body);overflow:hidden;-webkit-tap-highlight-color:transparent}
+#sea{position:fixed;inset:0;width:100%;height:100%;display:block}
+#app{position:fixed;inset:0;display:flex;flex-direction:column;pointer-events:none}
+#app>*{pointer-events:auto}
+[hidden]{display:none!important}
+button{font:inherit;cursor:pointer}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+:focus-visible{outline:3px solid var(--amber);outline-offset:3px}
+
+/* buttons */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:.5em;border:0;border-radius:18px;padding:.8em 1.4em;font-family:var(--disp);font-size:1.05rem;letter-spacing:.02em;color:#2a0d00;background:linear-gradient(#ffc04d,#ff8a3a);box-shadow:0 5px 0 #b3481a,0 10px 22px rgba(0,0,0,.35);transition:transform .08s,box-shadow .08s,filter .15s;text-transform:uppercase}
+.btn:hover{filter:brightness(1.08)}
+.btn:active{transform:translateY(4px);box-shadow:0 1px 0 #b3481a,0 4px 10px rgba(0,0,0,.35)}
+.btn.alt{color:var(--txt);background:linear-gradient(#2c6fb0,#1c4a86);box-shadow:0 5px 0 #0d2a55,0 10px 22px rgba(0,0,0,.35)}
+.btn.alt:active{box-shadow:0 1px 0 #0d2a55}
+.btn.ghost{background:rgba(6,20,48,.62);color:var(--txt);box-shadow:inset 0 0 0 2px var(--line);text-transform:none;font-size:.95rem;padding:.55em 1em}
+.btn.big{font-size:1.35rem;padding:.9em 1.8em}
+.btn[disabled]{opacity:.5;cursor:not-allowed}
+
+.panel{background:var(--glass);border:2px solid var(--line);border-radius:26px;box-shadow:0 18px 50px rgba(0,0,0,.45),inset 0 0 40px rgba(89,230,255,.06);backdrop-filter:blur(6px)}
+
+/* title */
+.screen{flex:1;display:flex;flex-direction:column;align-items:center;min-height:0}
+#title{justify-content:flex-start;padding:3vh 16px 8px;overflow:auto;text-align:center}
+.logo{font-family:var(--disp);font-weight:900;line-height:.92;margin:0;font-size:clamp(2.6rem,9vw,6rem);letter-spacing:.01em;
+  background:linear-gradient(#fff6c8 8%,#ffd24d 45%,#ff7a3d 95%);-webkit-background-clip:text;background-clip:text;color:transparent;
+  filter:drop-shadow(0 4px 0 #8a2d12) drop-shadow(0 10px 18px rgba(0,0,0,.45));transform:rotate(-1.5deg)}
+.logo small{display:block;font-size:.42em;letter-spacing:.3em;margin-bottom:.25em;background:linear-gradient(#bff6ff,#59e6ff);-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 3px 0 #0d3d63)}
+.tag{margin:.7rem auto .9rem;max-width:34rem;font-size:clamp(1rem,2.4vw,1.25rem);color:#fff;font-weight:700;text-shadow:0 2px 3px #0a3a66,0 0 12px #0a3a66}
+.menu{display:flex;flex-direction:column;gap:9px;align-items:stretch;width:min(420px,92vw)}
+.menu .row{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+.packs{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;padding:12px;margin-top:-4px}
+.chip{border:2px solid var(--line);background:rgba(255,255,255,.08);color:var(--txt);border-radius:999px;padding:.45em .9em;font-size:.9rem}
+.chip[aria-pressed=true]{background:var(--aqua);color:#032033;border-color:#fff;font-weight:700}
+.legend{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;margin-top:12px;font-size:.78rem}
+.legend span{padding:.25em .7em;border-radius:999px;color:#10131f;font-weight:700}
+.foot{margin-top:auto;padding-top:10px;font-size:.75rem;color:var(--dim);text-shadow:0 1px 3px #000}
+
+/* HUD */
+#hud{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 14px}
+.pill{background:var(--glass);border:2px solid var(--line);border-radius:999px;padding:.35em .95em;font-family:var(--disp);font-size:1rem;white-space:nowrap}
+.depthnum{font-size:1.5rem;color:var(--aqua)}
+#zone{font-size:.8rem;color:var(--dim);display:block;line-height:1;font-family:var(--body)}
+.hudc{text-align:center}
+#gauge{position:fixed;left:10px;top:84px;bottom:18vh;width:34px;pointer-events:none}
+#gauge .track{position:absolute;left:14px;top:0;bottom:0;width:6px;border-radius:6px;background:linear-gradient(#58d0ee,#2aa3d8 12%,#1b6fb0 30%,#153d78 50%,#0e2250 70%,#1a0b36 92%);border:1px solid rgba(255,255,255,.4)}
+#gauge .dot{position:absolute;left:5px;width:24px;height:24px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff,#ffc04d 55%,#ff7a3d);box-shadow:0 0 14px #ffb23c;transform:translateY(-12px)}
+
+/* play */
+#play{justify-content:flex-start;padding:4px 14px}
+.card{width:min(720px,100%);padding:20px 22px 18px;margin-top:2vh}
+.kicker{display:flex;justify-content:space-between;gap:8px;font-size:.82rem;color:var(--dim);text-transform:uppercase;letter-spacing:.08em}
+.q{font-family:var(--disp);font-size:clamp(1.35rem,3.6vw,2.15rem);line-height:1.18;margin:.5rem 0 1rem}
+.timer{height:14px;border-radius:99px;background:rgba(255,255,255,.14);overflow:hidden;border:1px solid var(--line)}
+.timer i{display:block;height:100%;width:100%;transform-origin:left;background:linear-gradient(90deg,#8dff7a,#ffd23f 60%,#ff5a4d)}
+.timernum{font-family:var(--disp);min-width:2.4ch;text-align:right}
+.trow{display:flex;align-items:center;gap:10px}
+.ans{display:flex;gap:10px;margin-top:14px}
+.ans input{flex:1;min-width:0;font:inherit;font-size:1.3rem;padding:.7em 1em;border-radius:16px;border:3px solid #7bd9f5;background:#031026;color:#fff;outline:0}
+.ans input:focus{border-color:var(--amber);box-shadow:0 0 0 4px rgba(255,178,60,.3)}
+.skip{margin-top:10px;text-align:center}
+.shake{animation:shk .35s}
+@keyframes shk{20%{transform:translateX(-8px)}40%{transform:translateX(8px)}60%{transform:translateX(-5px)}80%{transform:translateX(5px)}}
+
+.badge{display:inline-block;font-family:var(--disp);font-size:clamp(1.8rem,6vw,3rem);padding:.15em .7em;border-radius:20px;color:#10131f;box-shadow:0 6px 0 rgba(0,0,0,.35),0 0 30px currentColor;animation:pop .5s cubic-bezier(.2,1.6,.4,1)}
+@keyframes pop{0%{transform:scale(.3) rotate(-8deg);opacity:0}100%{transform:scale(1) rotate(0);opacity:1}}
+.pts{font-family:var(--disp);font-size:1.4rem;margin:.5rem 0 .3rem}
+.matched{color:var(--dim);margin:.1rem 0 .6rem}
+.note{background:rgba(89,230,255,.1);border-left:5px solid var(--aqua);padding:.6em .9em;border-radius:10px;text-align:left;margin:.7rem 0}
+.deeper{font-size:.92rem;color:#ffe9b0;margin:.4rem 0 .9rem}
+.src{font-size:.72rem;color:var(--dim);margin-bottom:.8rem}
+.center{text-align:center}
+.lv5 .badge{animation:pop .5s cubic-bezier(.2,1.6,.4,1),rainbow 1.6s linear infinite}
+@keyframes rainbow{to{filter:hue-rotate(360deg)}}
+
+/* results */
+#results{overflow:auto;padding:3vh 14px 24px;justify-content:flex-start}
+.rcard{width:min(760px,100%);padding:22px;text-align:center}
+.rank{font-family:var(--disp);font-size:clamp(1.3rem,4vw,2rem);color:var(--amber)}
+.bigdepth{font-family:var(--disp);font-size:clamp(3rem,13vw,6.5rem);line-height:1;color:var(--aqua);text-shadow:0 5px 0 #0b4a78,0 0 40px rgba(89,230,255,.5)}
+.chips{display:flex;gap:8px;justify-content:center;margin:14px 0;flex-wrap:wrap}
+.chips b{width:44px;height:44px;border-radius:12px;display:grid;place-items:center;color:#10131f;font-family:var(--disp);font-size:.9rem}
+.review{text-align:left;margin:14px 0;display:grid;gap:8px}
+.rv{padding:10px 12px;border-radius:14px;background:rgba(255,255,255,.07);border-left:6px solid var(--c,#999)}
+.rv h4{margin:0 0 3px;font-size:.95rem;font-weight:700}
+.rv p{margin:0;font-size:.85rem;color:var(--dim)}
+.rv em{color:var(--txt);font-style:normal;font-weight:700}
+.share{white-space:pre-wrap;font-family:ui-monospace,Consolas,monospace;background:#031026;border-radius:14px;padding:12px;margin:10px 0;border:1px dashed var(--line);text-align:left}
+
+/* dialogs */
+dialog{border:0;padding:0;background:transparent;color:var(--txt);max-width:min(760px,94vw);width:100%}
+dialog::backdrop{background:rgba(2,8,24,.72);backdrop-filter:blur(3px)}
+.dlg{padding:22px;max-height:86vh;overflow:auto}
+.dlg h2{font-family:var(--disp);margin:.2em 0 .5em}
+.dlg ol,.dlg ul{padding-left:1.2em}
+.dlg li{margin:.4em 0}
+.set{display:grid;grid-template-columns:1fr auto;gap:8px 12px;align-items:center;margin:10px 0}
+.seg{display:flex;gap:6px}
+table{width:100%;border-collapse:collapse;font-size:.82rem}
+th,td{text-align:left;padding:5px 6px;border-bottom:1px solid var(--line);vertical-align:top}
+details{margin:8px 0;background:rgba(255,255,255,.06);border-radius:12px;padding:8px 12px}
+summary{cursor:pointer;font-weight:700}
+.toast{position:fixed;left:50%;bottom:9vh;transform:translateX(-50%);font-family:var(--disp);font-size:1.4rem;padding:.4em 1.2em;border-radius:999px;background:var(--glass);border:2px solid var(--aqua);pointer-events:none;animation:toast 2.4s forwards;z-index:5}
+@keyframes toast{0%{opacity:0;transform:translate(-50%,14px)}12%,80%{opacity:1;transform:translate(-50%,0)}100%{opacity:0}}
+@media (max-width:640px){#gauge{display:none}.card{padding:14px}.hud-l,.hud-r{font-size:.85rem}.pill{padding:.3em .7em}}
+@media (max-height:560px){.logo{font-size:2.4rem}.tag{margin:.5rem}.q{font-size:1.2rem;margin:.3rem 0 .6rem}}
+@media (prefers-reduced-motion:reduce){.badge,.shake,.toast{animation-duration:.01s}}
+.rm *{animation-duration:.01s!important}
+</style>
+</head>
+<body>
+<canvas id="sea" aria-hidden="true"></canvas>
+<div id="app">
+  <header id="hud" hidden>
+    <div class="pill hud-l"><button class="btn ghost" id="btnQuit" style="padding:.2em .6em" aria-label="Quit dive">✕</button> <span id="hudRound">1 / 7</span></div>
+    <div class="pill hudc"><span class="depthnum"><span id="hudDepth">0</span> m</span><span id="zone">Sunlight Zone</span></div>
+    <div class="pill hud-r"><span id="hudScore">0 pts</span> <button class="btn ghost" id="btnMute" style="padding:.2em .5em" aria-label="Toggle sound">🔊</button></div>
+  </header>
+  <aside id="gauge" hidden aria-hidden="true"><div class="track"></div><div class="dot"></div></aside>
+
+  <main id="title" class="screen">
+    <h1 class="logo"><small>THE</small>DEEP PACKET<br>DIVE</h1>
+    <p class="tag">Dive 7,000 meters into the network ocean. Type one answer per question. The rarer your answer, the deeper you go.</p>
+    <div class="menu">
+      <button class="btn big" id="btnDaily">Daily Dive</button>
+      <div id="dailyNote" style="font-size:.85rem;color:#e9fbff;text-shadow:0 1px 4px #000"></div>
+      <div class="panel packs" role="group" aria-label="Free dive topic">
+        <button class="chip" data-pack="mixed" aria-pressed="true">Mixed</button>
+        <button class="chip" data-pack="p1" aria-pressed="false">Part 1 · Replay &amp; Privilege</button>
+        <button class="chip" data-pack="p2" aria-pressed="false">Part 2 · Injection &amp; Forgery</button>
+      </div>
+      <button class="btn alt" id="btnFree">Free Dive</button>
+      <div class="row"><button class="btn ghost" id="btnHow">How to play</button><button class="btn ghost" id="btnSet">Settings</button><button class="btn ghost" id="btnTeach">Teacher</button></div>
+    </div>
+    <div class="legend" id="legend" aria-label="Rarity tiers"></div>
+    <div class="foot">Lessons 2.4.11 and 2.4.12 · Application Attacks · No accounts. Scores stay on this device.</div>
+  </main>
+
+  <section id="play" class="screen" hidden>
+    <div class="panel card">
+      <div id="ask">
+        <div class="kicker"><span id="kick">Question 1 of 7</span><span>Type ONE answer</span></div>
+        <h2 class="q" id="q"></h2>
+        <div class="trow"><div class="timer" style="flex:1" role="progressbar" aria-label="Time left" aria-valuemin="0" aria-valuemax="60"><i id="timerBar"></i></div><span class="timernum" id="timerNum">25</span></div>
+        <form id="form" class="ans" autocomplete="off"><label class="sr" for="answer">Your answer</label><input id="answer" type="text" maxlength="80" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="Type your answer..."><button class="btn" type="submit">Dive</button></form>
+        <div class="skip"><button class="btn ghost" type="button" id="btnPass">Pass (0 pts)</button></div>
+      </div>
+      <div id="reveal" hidden></div>
+    </div>
+  </section>
+
+  <section id="results" class="screen" hidden></section>
+</div>
+<div class="sr" id="live" aria-live="polite"></div>
+
+<dialog id="dlgHow"><div class="panel dlg"><h2>How to play</h2><ol>
+<li>Each dive has <b>7 questions</b>. You get <b>25 seconds</b> for each.</li>
+<li>Type <b>one answer</b>. Most questions have many right answers.</li>
+<li>Right is not enough. <b>Rarer answers score more.</b> The obvious one is Plankton (10). The deep cut is Leviathan (100).</li>
+<li>Every point is 10 meters. Max score <b>700 points = 7,000 m</b>.</li>
+<li>After each answer you see <b>why</b> and what deeper answers existed. Use it to study.</li>
+<li>The <b>Daily Dive</b> is the same 7 for everyone, once per day. <b>Free Dive</b> is unlimited.</li></ol>
+<p><button class="btn" data-close>Got it</button></p></div></dialog>
+<dialog id="dlgSet"><div class="panel dlg"><h2>Settings</h2><div id="setBody"></div><p><button class="btn" data-close>Done</button></p></div></dialog>
+<dialog id="dlgTeach"><div class="panel dlg"><h2>Teacher tools</h2><div id="teachBody"></div><p><button class="btn" data-close>Close</button></p></div></dialog>
+<script>// Answer matcher. Tiers in order: p,m,a,b,k,l -> points.
+const TIERS = [
+  {k:'p',name:'Plankton',pts:10,emoji:'🟩'},
+  {k:'m',name:'Minnow',pts:15,emoji:'🟦'},
+  {k:'a',name:'Angler',pts:30,emoji:'🟨'},
+  {k:'b',name:'Barracuda',pts:60,emoji:'🟧'},
+  {k:'k',name:'Kraken',pts:85,emoji:'🟥'},
+  {k:'l',name:'Leviathan',pts:100,emoji:'🟪'}
+];
+const VAGUE = new Set(['attack','attacks','hack','hacks','hacker','hacking','security','defense','defence','protection','injection','forgery','overflow','thing','stuff','idk','dunno','none','nothing','a','the','yes','no']);
+function normKey(s){
+  s = String(s||'').toLowerCase().trim().replace(/[‘’]/g,"'");
+  s = s.replace(/^(a|an|the)\s+/,'');
+  s = s.replace(/[^a-z0-9.%'+#*]/g,'');
+  if (/[a-z0-9]/.test(s)) s = s.replace(/\.+$/,'');
+  return s;
+}
+function lev(a,b,max){
+  if (Math.abs(a.length-b.length)>max) return max+1;
+  const m=a.length,n=b.length; let prev=Array.from({length:n+1},(_,i)=>i);
+  for(let i=1;i<=m;i++){const cur=[i];let rowMin=i;
+    for(let j=1;j<=n;j++){const c=Math.min(prev[j]+1,cur[j-1]+1,prev[j-1]+(a[i-1]===b[j-1]?0:1));cur.push(c);if(c<rowMin)rowMin=c;}
+    if(rowMin>max) return max+1; prev=cur;}
+  return prev[n];
+}
+function buildIndex(prompt){
+  const map=new Map(); const canon=[];
+  TIERS.forEach((T,ti)=>{
+    (prompt.t[T.k]||[]).forEach(entry=>{
+      const parts=String(entry).split('|'); const name=parts[0];
+      canon.push({name,ti});
+      parts.forEach(al=>{const key=normKey(al); if(key && !map.has(key)) map.set(key,{ti,name});});
+    });
+  });
+  return {map,canon};
+}
+// Returns {ti:-1|0..5, name, how:'exact'|'close'|'none'|'vague'}
+function matchAnswer(prompt,raw,idx){
+  idx = idx || prompt._idx || (prompt._idx = buildIndex(prompt));
+  const map=idx.map;
+  const rawTrim=String(raw||'').trim();
+  if(!rawTrim) return {ti:-1,how:'none'};
+  // dots/slashes only (traversal prompt)
+  if(prompt.id==='r-trav-str' && /^[.\/\\;]+$/.test(rawTrim) && rawTrim.includes('..')){
+    if(rawTrim.includes(';')) return {ti:5,name:'..;/',how:'exact'};
+    if(rawTrim.includes('....')) return {ti:4,name:'....//',how:'exact'};
+    if(rawTrim.includes('\\')) return {ti:2,name:'..\\',how:'exact'};
+    const pairs=(rawTrim.match(/\.\./g)||[]).length;
+    return pairs>=2 ? {ti:1,name:'../../',how:'exact'} : {ti:0,name:'../',how:'exact'};
+  }
+  let key=normKey(rawTrim);
+  if(!key) return {ti:-1,how:'none'};
+  if(VAGUE.has(key)) return {ti:-1,how:'vague'};
+  let hit=map.get(key); if(hit) return {ti:hit.ti,name:hit.name,how:'exact'};
+  // plural / suffix tolerance
+  for(const alt of [key.replace(/s$/,''),key+'s',key.replace(/es$/,''),key.replace(/ing$/,''),key.replace(/ed$/,'')]){
+    if(alt!==key && alt.length>=3 && (hit=map.get(alt))) return {ti:hit.ti,name:hit.name,how:'exact'};
+  }
+  // fuzzy typo tolerance
+  if(key.length>=5){
+    const max = key.length>=10 ? 2 : 1; let best=null,bd=99;
+    for(const [k2,v] of map){ if(k2.length<5) continue; const d=lev(key,k2,max);
+      if(d<=max && (d<bd || (d===bd && v.ti<best.ti))){bd=d;best=v;} }
+    if(best) return {ti:best.ti,name:best.name,how:'close'};
+  }
+  // containment (typed sentence contains known answer, or typed is most of a known answer)
+  if(key.length>=6){
+    let best=null;
+    for(const [k2,v] of map){
+      if(k2.length>=5 && key.includes(k2)){ if(!best || k2.length>best.len || (k2.length===best.len && v.ti<best.ti)) best={ti:v.ti,name:v.name,len:k2.length}; }
+    }
+    if(best) return {ti:best.ti,name:best.name,how:'close'};
+    for(const [k2,v] of map){
+      if(k2.length>key.length && key.length/k2.length>=0.75 && k2.includes(key)) {
+        if(!best || v.ti<best.ti) best={ti:v.ti,name:v.name,len:k2.length};
+      }
+    }
+    if(best) return {ti:best.ti,name:best.name,how:'close'};
+  }
+  return {ti:-1,how:'none'};
+}
+
+</script>
+<script>// Deep Packet Dive content bank. Tiers: p=Plankton 10, m=Minnow 15, a=Angler 30, b=Barracuda 60, k=Kraken 85, l=Leviathan 100.
+// Each answer string: "canonical|alias|alias". Matching ignores case, spaces, hyphens, punctuation.
+// pack: 1 = Lesson 2.4.11 (Pt 1), 2 = Lesson 2.4.12 (Pt 2), 0 = bonus (mixed only).
+const BANK = [
+{id:'r-capture',pack:1,q:'Name a way an attacker can capture packets for a replay attack.',src:'2.4.11 · slide 4',
+ note:'Replay needs captured packets. Slide methods: ARP poisoning, tapping/sniffing, malware.',
+ t:{p:['sniffing|packet sniffing|sniffer|wireshark|tapping|network tap|tap|eavesdropping|listening'],
+    m:['malware|virus|trojan|keylogger|spyware|worm'],
+    a:['ARP poisoning|arp spoofing|arp poison|arp cache poisoning|arp'],
+    b:['man in the middle|mitm|on path attack|on-path|rogue access point|evil twin|fake wifi|rogue ap'],
+    k:['packet capture|pcap|tcpdump|promiscuous mode|span port|port mirroring|network monitoring'],
+    l:['mac flooding|rogue dhcp|compromised router|dns spoofing|dns poisoning|session sidejacking']}},
+{id:'r-defense',pack:1,q:'Name a defense against replay attacks.',src:'2.4.11 · slide 8',
+ note:'A nonce (often date/time based) changes every packet, so a replayed copy fails the check.',
+ t:{p:['encryption|encrypt|https|tls|ssl|vpn|firewall|antivirus|anti virus'],
+    m:['strong passwords|updates|patching|patch|safe browsing|best practices|be careful|training|awareness'],
+    a:['session timeout|session expiration|session expiry|expire sessions|otp|one time password|token expiry|token expiration|short lived tokens'],
+    b:['nonce|timestamp|time stamp|date and time|timestamps'],
+    k:['sequence numbers|sequence number|challenge response|challenge-response|mutual authentication|rotate session ids|session id rotation'],
+    l:['kerberos|hmac|message authentication code|anti replay window|ipsec|one time token|cryptographic nonce|digital signature']}},
+{id:'r-nonce',pack:1,q:'Name something a nonce could be built from.',src:'2.4.11 · slide 8',
+ note:'A nonce must be new each time. Date+time is the slide example. Random values and counters work too.',
+ t:{p:['date and time|date|time|timestamp|time stamp|datetime|the date'],
+    m:['random number|random|number|counter|incrementing number|numbers|a number|digits'],
+    a:['random string|uuid|guid|token|hash|characters|letters|sequence number'],
+    b:['cryptographic random|csprng|salt|iv|initialization vector|challenge|server challenge'],
+    k:['monotonic counter|signed timestamp|hmac|server issued challenge|random bytes'],
+    l:['epoch time|unix time|unix timestamp|hardware random|true random number generator|trng|entropy']}},
+{id:'r-kind',pack:1,q:'Name a kind of replay or credential reuse attack.',src:'2.4.11 · slides 3, 6, 7',
+ note:'Session replay reuses a session ID. Pass the hash reuses a captured password hash. No cracking needed.',
+ t:{p:['replay attack|replay|replay attacks'],
+    m:['session hijacking|hijacking|credential reuse|credential stuffing'],
+    a:['session replay|session replay attack|replay session'],
+    b:['pass the hash|pth|pass-the-hash'],
+    k:['cookie theft|token replay|pass the ticket|ticket replay|cookie replay|session sidejacking'],
+    l:['golden ticket|silver ticket|pass the cookie|pass the token|kerberos replay']}},
+{id:'r-session',pack:1,q:'Name something a session replay attacker needs to steal.',src:'2.4.11 · slide 6',
+ note:'Steal the session ID and you skip the login entirely. The server thinks you are the user.',
+ t:{p:['session id|session|sessions|cookie|cookies|session cookie|session token|token|sid'],
+    m:['password|credentials|login|username|login info|credentials|passwords'],
+    a:['session key|authentication token|auth token|jsessionid|auth cookie|session information|session data|auth cookie'],
+    b:['packets|network traffic|captured packets|packet|traffic|network packets'],
+    k:['bearer token|jwt|json web token|phpsessid|asp.net_sessionid|access token|api token'],
+    l:['refresh token|saml assertion|kerberos ticket|oauth token|csrf token']}},
+{id:'r-hashalg',pack:1,q:'Name a hashing algorithm.',src:'2.4.11 · slide 7 (hash context)',
+ note:'Systems store and compare hashes, not plaintext. Pass the hash steals the hash itself.',
+ t:{p:['md5|md 5'],
+    m:['sha1|sha-1|sha 1'],
+    a:['sha256|sha-256|sha2|sha-2|sha'],
+    b:['bcrypt|ntlm|sha512|sha-512|sha3|sha-3|sha 384|sha384'],
+    k:['argon2|pbkdf2|scrypt|ripemd|whirlpool|blake2|blake3|ripemd160'],
+    l:['lm hash|lanman|md4|keccak|tiger|snefru|siphash|blake2b']}},
+{id:'r-pth',pack:1,q:'Name something tied to pass-the-hash attacks on Windows.',src:'2.4.11 · slide 7',
+ note:'Pass the hash usually targets Windows NTLM. The hash is dumped from memory (LSASS) then reused.',
+ t:{p:['windows|ntlm|password|passwords|hash|hashes'],
+    m:['active directory|ad|domain|smb|login|logon|network login|file share'],
+    a:['lsass|sam|mimikatz|ntlm hash|credential dumping|sam database'],
+    b:['crackmapexec|impacket|psexec|domain controller|rdp|winrm|nt hash|local admin'],
+    k:['windows credential editor|wce|metasploit|pth winexe|evil winrm|secretsdump|procdump|lsass dump'],
+    l:['restricted admin mode|credential guard|ntlmv2|ntlm relay|kerberos delegation|ntds.dit|laps']}},
+{id:'r-state',pack:1,q:'Name a way a web app remembers you after you log in.',src:'2.4.11 · slide 9',
+ note:'HTTP is stateless, so apps hand you a session ID or token. If stolen or tampered with, privileges can be gained.',
+ t:{p:['cookies|cookie|session cookie|session|session id'],
+    m:['login|password|username|credentials|remember me|account'],
+    a:['token|session token|jwt|sessions|local storage|url parameter|json web token|hidden field'],
+    b:['bearer token|oauth|saml|basic auth|http basic authentication|api key|hidden form field|sso|single sign on'],
+    k:['refresh token|server side session|redis session|session store|openid connect|oidc|kerberos|client certificate'],
+    l:['mutual tls|mtls|dpop|webauthn|passkeys|passkey|fido2|token binding']}},
+{id:'r-privtype',pack:1,q:'Name a type or technique of privilege escalation.',src:'2.4.11 · slide 10',
+ note:'Vertical = up to admin/root. Horizontal = sideways to another account at the same level.',
+ t:{p:['vertical|vertical escalation|vertical privilege escalation|horizontal|horizontal escalation|horizontal privilege escalation'],
+    m:['privilege escalation|admin access|root access|become admin|become root|gain admin|su|sudo'],
+    a:['kernel exploit|local privilege escalation|lpe|remote privilege escalation|unpatched software|unpatched|misconfiguration'],
+    b:['sudo misconfiguration|setuid|suid abuse|suid|dll hijacking|token impersonation|cookie manipulation|session manipulation|weak permissions'],
+    k:['unquoted service path|uac bypass|container escape|cron job abuse|path hijacking|path interception|stored credentials'],
+    l:['dirty cow|dirtycow|dirty pipe|printnightmare|juicy potato|pwnkit|eternalblue']}},
+{id:'r-privdef',pack:1,q:'Name a defense against privilege escalation.',src:'2.4.11 · slide 11',
+ note:'Slide defenses: patches, antivirus, ASLR, server-side secrets, digital signatures, encryption.',
+ t:{p:['patching|updates|security updates|patch|update|antivirus|anti virus|av|software updates'],
+    m:['firewall|strong passwords|training|monitoring|logging|backups'],
+    a:['ASLR|address space layout randomization|least privilege|principle of least privilege'],
+    b:['digital signatures|digital signature|encryption|session ids only|server side session data|input validation|mfa|access control|rbac|multi factor authentication'],
+    k:['DEP|data execution prevention|stack canary|sandbox|sandboxing|application allowlisting|app whitelisting|selinux|apparmor|uac'],
+    l:['kernel hardening|seccomp|secure boot|memory protection|code signing|just in time access|jit access|privileged access management|pam']}},
+{id:'r-trav-def',pack:1,q:'Name a way to defend against directory traversal.',src:'2.4.11 · slide 12 (defenses beyond slide)',
+ note:'Never trust file paths from users. Validate, normalize, and lock the app into one folder.',
+ t:{p:['input validation|validate input|sanitize input|sanitization|sanitizing|input sanitization|validation'],
+    m:['update|updates|patch|patching|firewall|waf|web application firewall|antivirus'],
+    a:['canonicalization|canonicalize paths|allowlist|whitelist|least privilege|restrict permissions|file permissions|permissions'],
+    b:['chroot|jail|sandbox|filter ../|block dot dot slash|disable directory listing|secure coding|path normalization'],
+    k:['realpath|normalize path|file ids instead of paths|indirect object references|static analysis|code review|containers'],
+    l:['chroot jail|mandatory access control|selinux|apparmor|read only filesystem|read only file system']}},
+{id:'r-trav-file',pack:1,q:'Name a file an attacker wants to read with directory traversal on Linux.',src:'2.4.11 · slide 12',
+ note:'../../../etc/shadow is the slide example. It holds password hashes. Think config files, keys, logs.',
+ t:{p:['/etc/passwd|etc passwd|passwd|password file|passwords'],
+    m:['/etc/shadow|etc shadow|shadow|shadow file'],
+    a:['/etc/hosts|hosts|etc hosts|/etc/group|group|/etc/issue'],
+    b:['ssh keys|id_rsa|.ssh|authorized_keys|bash history|.bash_history|config file|wp-config.php|wp config|.env|env file|database config|web.config'],
+    k:['/proc/self/environ|proc self environ|/var/log/auth.log|auth.log|access.log|/etc/sudoers|sudoers|/root/.ssh/id_rsa|/var/log/apache2/access.log'],
+    l:['/proc/self/cmdline|/proc/version|/etc/crontab|crontab|/proc/net/arp|/etc/fstab|fstab']}},
+{id:'r-trav-str',pack:1,q:'Name a string or trick used in directory traversal.',src:'2.4.11 · slide 12',
+ note:'../ climbs one folder. Stack enough of them and you reach the root. Encoding tricks dodge naive filters.',
+ t:{p:['../|dot dot slash|dotdotslash|..'],
+    m:['../../|parent directory|double dot|dot dot'],
+    a:['..\\|dot dot backslash|..\\..\\|backslash|../../../'],
+    b:['%2e%2e%2f|url encoding|url encoded|encoded dots|%2e|percent encoding'],
+    k:['....//|double encoding|%252e%252e%252f|null byte|%00|nested sequences'],
+    l:['unicode encoding|overlong utf-8|overlong utf8|..;/|utf-8 encoding|%c0%ae']}},
+
+{id:'a-injection',pack:2,q:'Name an injection attack.',src:'2.4.12 · slides 3-4',
+ note:'Injection = untrusted input run as code. (The deck also lists CSRF here; strictly it is request forgery.)',
+ t:{p:['SQL injection|sqli|sql|sql injection attack|sql-i'],
+    m:['command injection|xss|cross site scripting|code injection|cross-site scripting|script injection'],
+    a:['LDAP injection|html injection|os command injection|shell injection|ldap'],
+    b:['CSRF|cross site request forgery|xsrf|xpath injection|nosql injection|xml injection|xxe'],
+    k:['header injection|crlf injection|template injection|ssti|log injection|expression language injection|css injection'],
+    l:['jndi injection|log4shell|ognl injection|php object injection|prototype pollution|host header injection']}},
+{id:'a-injdef',pack:2,q:'Name a way to stop injection attacks.',src:'2.4.12 · slide 5',
+ note:'Slide mitigations: secure coding, input checks, sanitized/parameterized queries, firewalls, regular code checks.',
+ t:{p:['input validation|validate input|input checks|sanitize|sanitization|sanitizing inputs|input sanitization|validation|sanitizing'],
+    m:['firewall|waf|web application firewall|updates|patching|antivirus|training'],
+    a:['parameterized queries|prepared statements|parameters|secure coding|secure coding practices|code review|parameterized statements'],
+    b:['stored procedures|escape input|output encoding|escaping|allowlist|whitelist|least privilege|ids|ips|intrusion detection|penetration testing|pentest|security testing'],
+    k:['orm|content security policy|csp|type checking|static analysis|sast|dast|fuzzing|fuzz testing'],
+    l:['trusted types|database account separation|query allowlisting|rasp|runtime application self protection|taint tracking']}},
+{id:'a-sqli',pack:2,q:'Name something SQL injection lets an attacker do.',src:'2.4.12 · slide 3',
+ note:'SQLi manipulates the app\'s database queries: read, change, or delete data and maybe gain access.',
+ t:{p:['steal data|access data|data theft|read data|dump database|get passwords|steal information|see data|view data|get data'],
+    m:['delete data|modify data|change data|drop table|bypass login|login bypass|authentication bypass|alter data|edit data|bypass authentication'],
+    a:['unauthorized access|insert data|update data|escalate privileges|admin access|create accounts|add data|take over account|get in without password'],
+    b:['union attack|read files|execute commands|data exfiltration|exfiltrate data|enumerate tables|list tables|dump users'],
+    k:['write files|remote code execution|rce|xp_cmdshell|webshell|web shell|run os commands'],
+    l:['lateral movement|pivot to internal network|pivot|blind extraction|time based extraction|denial of service']}},
+{id:'a-sqlcmd',pack:2,q:'Name a SQL command or keyword attackers abuse in SQL injection.',src:'2.4.12 · slide 3 (keywords beyond slide)',
+ note:'Injected SQL piggybacks on the app\'s own query. UNION and DROP are classic.',
+ t:{p:['select|drop|drop table|insert|update|delete'],
+    m:['union|where|union select|truncate|alter|create|exec|execute'],
+    a:['order by|group by|having|from|like|join|limit|into|information_schema|sleep|waitfor'],
+    b:['benchmark|xp_cmdshell|load_file|into outfile|concat|cast|convert|extractvalue|updatexml|pg_sleep|substring|char|ascii|sysobjects'],
+    k:['waitfor delay|sqlmap|load data infile|sp_executesql|openrowset|bulk insert|utl_http|dbms_pipe'],
+    l:['xp_dirtree|xp_regread|sp_oacreate|copy to program|sys.databases|sqlite_master|pg_read_file']}},
+{id:'a-xss',pack:2,q:'Name something XSS lets an attacker steal or do.',src:'2.4.12 · slide 3',
+ note:'XSS runs the attacker\'s script in the victim\'s browser, so it can grab whatever that page can reach.',
+ t:{p:['cookies|session cookies|credentials|passwords|session|cookie|login info'],
+    m:['data|information|user data|personal information|tokens|session id|account|identity'],
+    a:['session tokens|keystrokes|keylogging|redirect user|redirect to malicious site|deface page|defacement|session hijack'],
+    b:['csrf tokens|form data|credit card|payment details|fake login form|phishing form|change page content'],
+    k:['local storage|localstorage|browser history|clipboard|screenshots|internal network scan|port scan'],
+    l:['webcam access|geolocation|saved passwords|autofill|browser exploit|worm|self propagating worm']}},
+{id:'a-xsstype',pack:2,q:'Name a type of cross-site scripting (XSS).',src:'2.4.12 · slide 3 (types beyond slide)',
+ note:'Stored lives on the server. Reflected bounces off a link. DOM-based happens only in the browser.',
+ t:{p:['stored|reflected|persistent'],
+    m:['dom|dom based|dom-based|non persistent|stored xss|reflected xss|persistent xss|non-persistent'],
+    a:['blind|blind xss|self xss|self-xss|dom xss|dom based xss'],
+    b:['mutation xss|mxss|universal xss|uxss|flash xss|svg xss|xss via svg'],
+    k:['stored dom xss|csp bypass xss|reflected dom xss|angular template injection'],
+    l:['xss via pdf|xss via file upload|xss in email|mutation observer xss']}},
+{id:'a-cmd',pack:2,q:'Name something command injection can make a system run.',src:'2.4.12 · slide 4',
+ note:'Command injection feeds system commands to the host through an app input field.',
+ t:{p:['commands|system commands|malicious commands|shell commands|code|malicious code|a command|cmd|command'],
+    m:['scripts|script|programs|malware|bash|shell|terminal|software'],
+    a:['whoami|ls|dir|cat|ping|rm|net user|ipconfig|netcat|nc|curl|wget'],
+    b:['reverse shell|bind shell|download malware|delete files|create user|add user|nmap|powershell|cmd.exe|/bin/sh'],
+    k:['cron job|persistence|crontab|ssh key|mimikatz|chmod|useradd|exfiltrate data|base64 decode|certutil'],
+    l:['kernel module|rootkit|container escape|ransomware payload|systemd service|ld_preload']}},
+{id:'a-ldap',pack:2,q:'Name something you can find in an LDAP directory.',src:'2.4.12 · slide 4',
+ note:'LDAP injection tampers with queries to this kind of directory data. Think users, groups, devices.',
+ t:{p:['users|user accounts|usernames|accounts|passwords|user|names'],
+    m:['groups|computers|devices|printers|contacts|email addresses|emails|phone numbers|people'],
+    a:['organizational units|ou|ous|permissions|credentials|roles|shared folders|resources|policies|departments'],
+    b:['group policy|gpo|distinguished name|dn|common name|cn|domain controllers|service accounts|certificates'],
+    k:['schema|schemas|attributes|objectclass|object classes|spns|service principal names|kerberos tickets'],
+    l:['replication metadata|security identifier|sid|ntds|trust relationships|forests|domain trusts']}},
+{id:'a-field',pack:2,q:'Name an input spot attackers might inject into.',src:'2.4.12 · slides 3-4',
+ note:'Any input the app trusts can be a doorway: forms, URLs, headers, cookies, files.',
+ t:{p:['login form|login|username field|password field|search bar|search box|search|login page'],
+    m:['text box|form|comment box|comments|url|contact form|input field|text field|forms|website form'],
+    a:['url parameter|query string|query parameters|address bar|cookie|cookies|http header|headers|user agent|referer'],
+    b:['file upload|file name|filename|hidden field|api parameter|json body|api|post data|textarea|chat message|profile bio|display name'],
+    k:['xml|xml body|graphql query|graphql|websocket message|csv cell|csv|email header|host header'],
+    l:['pdf metadata|exif data|exif|qr code|barcode|log entries|smtp banner|dns record|snmp']}},
+{id:'a-secure',pack:2,q:'Name a secure coding practice.',src:'2.4.12 · slide 5',
+ note:'Secure coding practices plus regular security and coding checks close injection holes before attackers find them.',
+ t:{p:['input validation|validation|sanitization|sanitize input|testing|code review|sanitizing'],
+    m:['updates|patching|comments|documentation|version control|peer review|training'],
+    a:['parameterized queries|prepared statements|least privilege|error handling|secure defaults|encryption|authentication|authorization'],
+    b:['output encoding|escaping|bounds checking|fail securely|defense in depth|dependency scanning|secrets management|logging|safe apis|memory safety|static analysis|sast'],
+    k:['threat modeling|dast|fuzz testing|fuzzing|software bill of materials|sbom|code signing|secure sdlc|sdlc|devsecops|two person review'],
+    l:['formal verification|property based testing|reproducible builds|capability based security|sandboxing|memory tagging']}},
+{id:'a-detect',pack:2,q:'Name a tool or control that helps detect or block injection attempts.',src:'2.4.12 · slide 5',
+ note:'Firewalls and extra tools can detect and prevent intrusions. Regular checks find the flaws behind them.',
+ t:{p:['firewall|waf|web application firewall|antivirus'],
+    m:['ids|intrusion detection system|ips|intrusion prevention system|logs|scanner|vulnerability scanner|intrusion detection|intrusion prevention'],
+    a:['SIEM|log monitoring|monitoring|penetration testing|pentest|burp suite|burp|sqlmap|owasp zap|zap'],
+    b:['code review|static analysis|sast|dast|nessus|nikto|fuzzer|honeypot'],
+    k:['rasp|snort|suricata|modsecurity|mod_security|anomaly detection|behavior analytics|ueba'],
+    l:['canary tokens|deception technology|runtime protection|api gateway|bot management']}},
+{id:'b-bo-after',pack:2,q:'Name something that can happen after a buffer overflow.',src:'2.4.12 · slide 6',
+ note:'Too much data spills into adjacent memory. Best case a crash, worst case attacker code runs.',
+ t:{p:['crash|program crash|crashes|app crashes|freeze|program crashes'],
+    m:['error|memory corruption|data loss|overwrite|overwriting memory|overwrite data|corruption'],
+    a:['code execution|arbitrary code execution|remote code execution|rce|run malicious code|execute malicious code|overwrites adjacent memory|overwrite adjacent memory'],
+    b:['privilege escalation|denial of service|dos|shell|root access|system compromise|segmentation fault|segfault|system takeover'],
+    k:['return address overwrite|control flow hijack|stack smashing|eip overwrite|instruction pointer overwrite|rop|shellcode'],
+    l:['heap corruption|canary leak|aslr bypass|ret2libc|return to libc|return oriented programming']}},
+{id:'b-bo-def',pack:2,q:'Name a defense against buffer overflows.',src:'2.4.12 · slide 6 (defenses beyond slide)',
+ note:'Check bounds, use memory-safe languages, and let the OS randomize and fence off memory.',
+ t:{p:['updates|patching|patch|input validation|bounds checking|bounds check|validation'],
+    m:['antivirus|firewall|secure coding|code review|testing|training'],
+    a:['ASLR|address space layout randomization|safe functions|memory safe language|rust|use safe languages|safe languages'],
+    b:['DEP|data execution prevention|nx bit|non executable stack|stack canary|canaries|stack protector|fuzzing|static analysis'],
+    k:['control flow integrity|cfi|fortify source|asan|addresssanitizer|shadow stack|safe stack'],
+    l:['cheri|memory tagging|arm mte|pointer authentication|sandboxing|hardware enforced memory safety']}},
+{id:'b-bo-where',pack:2,q:'Name something that gets overwritten in a buffer overflow.',src:'2.4.12 · slide 6',
+ note:'The slide shows original data overwritten in the name field. Adjacent memory is the victim.',
+ t:{p:['memory|ram|buffer|stack|heap|data'],
+    m:['variable|variables|adjacent memory|nearby memory|array|string|data segment|bss|other data|neighboring memory'],
+    a:['return address|pointer|function pointer|stack frame|saved ebp|frame pointer|instruction pointer|eip|rip|saved registers|local variables'],
+    b:['canary|got|global offset table|vtable|virtual table|exception handler|seh|heap metadata|chunk header|stack canary'],
+    k:['.got.plt|plt|destructors|dtors|atexit|malloc hooks|free hook|thread local storage|jmp_buf'],
+    l:['link register|lr register|saved rbp|thread control block|fs register']}},
+{id:'b-bo-analogy',pack:2,q:'Buffer overflow is like pouring water into a ____ beyond its capacity.',src:'2.4.12 · slide 6',
+ note:'Slide analogy: a pitcher. Water spills = data overflowing into neighboring memory.',
+ t:{p:['pitcher'],
+    m:['cup|glass|jug|bottle|bucket|container|bowl|jar|pot|tank|vessel'],
+    a:['bathtub|sink|pool|tub|barrel|vase|mug|kettle|carafe|pail|basin'],
+    b:['gas tank|fuel tank|balloon|water bottle|canteen|thermos|flask'],
+    k:['dam|reservoir|boat|ship|sponge|aquarium|fish tank|well'],
+    l:['submarine|sub|fishbowl|krill|lifeboat|ballast tank|ocean']}},
+{id:'b-bo-safe',pack:2,q:'Name a memory-safe programming language.',src:'2.4.12 · slide 6 (extension)',
+ note:'Memory-safe languages check bounds for you, which blocks classic buffer overflows. C and C++ do not.',
+ t:{p:['java|python'],
+    m:['javascript|js|c#|c sharp|ruby|php'],
+    a:['rust|go|golang|swift|kotlin|typescript|perl'],
+    b:['haskell|ocaml|scala|elixir|erlang|lua|dart|f#|clojure|julia|r'],
+    k:['ada|spark|ada spark|ats|idris|coq|agda|lean|cyclone'],
+    l:['f*|fstar|zig|nim|d|vale|carbon|mojo']}},
+{id:'f-type',pack:2,q:'Name a type of request forgery.',src:'2.4.12 · slides 7-8',
+ note:'CSRF is client-side. SSRF is server-side. Same idea, different victim.',
+ t:{p:['CSRF|cross site request forgery|xsrf|cross-site request forgery'],
+    m:['client side|client-side request forgery|client side request forgery|request forgery|forgery'],
+    a:['SSRF|server side request forgery|server-side request forgery|server side'],
+    b:['blind ssrf|login csrf|json csrf|blind csrf'],
+    k:['stored csrf|cloud metadata ssrf|get csrf|post csrf|csrf via get'],
+    l:['dns rebinding|ssrf via redirect|open redirect ssrf|ssrf via dns']}},
+{id:'f-do',pack:2,q:'Name something CSRF can make a victim do without knowing.',src:'2.4.12 · slides 7-8',
+ note:'Slide examples: unwanted bank transactions, changed credentials, other account changes.',
+ t:{p:['transfer money|bank transaction|transactions|unwanted transaction|send money|purchase|buy something|transfer funds'],
+    m:['change password|change email|change credentials|change settings|account changes|change account settings|reset password'],
+    a:['delete account|post content|post a message|submit form|follow someone|like a post|change address|unauthorized action|make a purchase'],
+    b:['add admin|create admin user|enable forwarding|change forwarding|email forwarding|modify firewall rules|change dns'],
+    k:['disable mfa|link attacker account|add ssh key|reset recovery email|update recovery email|turn off two factor'],
+    l:['change router dns|enable remote access|approve oauth app|grant oauth permissions|install extension']}},
+{id:'f-need',pack:2,q:'Name something CSRF needs in order to work.',src:'2.4.12 · slide 7',
+ note:'Victim logged in + malicious link or site + a site that does not validate the request = forged action.',
+ t:{p:['logged in|user logged in|authenticated|logged-in user|logged in user|being logged in'],
+    m:['malicious link|malicious site|click a link|phishing link|bad link|attacker website|malicious website|link|fake website'],
+    a:['active session|valid session|cookie|session cookie|session|trusted session|authentication'],
+    b:['no validation|no token|no csrf token|predictable request|predictable parameters|trusting browser|browser sends cookies|no re authentication|missing validation'],
+    k:['no samesite|missing origin check|no referer check|missing referer check|state changing get|get request changes state'],
+    l:['cors misconfiguration|cross origin misconfiguration|permissive cors|simple request|form content type']}},
+{id:'f-def',pack:2,q:'Name a defense against request forgery.',src:'2.4.12 · slides 7-8',
+ note:'Anti-forgery tokens make each request unforgeable. SameSite cookies and origin checks add layers.',
+ t:{p:['csrf token|anti csrf token|tokens|token|anti forgery token|anti-csrf token'],
+    m:['validation|input validation|logging out|log out|logout|dont click links|dont click suspicious links|antivirus|firewall'],
+    a:['reauthentication|re authentication|confirm action|captcha|mfa|multi factor|session timeout|short sessions|confirmation prompt'],
+    b:['samesite cookies|samesite|referer check|origin check|check origin|check referer|double submit cookie|custom headers|http headers'],
+    k:['sec fetch site|fetch metadata|cookie prefix|__host prefix|synchronizer token pattern|synchronizer token'],
+    l:['ssrf allowlist|egress filtering|imdsv2|metadata service v2|block internal ip ranges|network segmentation']}},
+{id:'f-ssrf',pack:2,q:'Name something an SSRF attacker can reach through a vulnerable server.',src:'2.4.12 · slide 8',
+ note:'Server-side forgery tricks the server into fetching things: files, internal services, cloud metadata.',
+ t:{p:['files|server files|data|internal data|information|sensitive data'],
+    m:['server|internal server|internal systems|database|intranet|network|credentials|passwords'],
+    a:['internal network|internal services|localhost|admin panel|internal apis|internal api|config files|configuration files'],
+    b:['cloud metadata|metadata service|169.254.169.254|aws metadata|internal ip addresses|intranet pages|api keys|ssh keys'],
+    k:['iam credentials|iam role credentials|kubernetes api|redis|memcached|elasticsearch|docker socket|internal admin console'],
+    l:['azure imds|gcp metadata|consul|etcd|vault|jenkins|internal port scan']}},
+
+{id:'x-app',pack:0,q:'Name a common application attack.',src:'2.4.11 + 2.4.12',
+ note:'Application attacks exploit flaws in installed apps or the system underneath them.',
+ t:{p:['SQL injection|sqli|xss|cross site scripting|buffer overflow|csrf'],
+    m:['injection|command injection|replay|replay attack|privilege escalation|directory traversal|path traversal'],
+    a:['session replay|pass the hash|LDAP injection|request forgery|ssrf|race condition|zero day|zero-day'],
+    b:['toctou|memory leak|dll injection|xxe|insecure deserialization|clickjacking|api abuse'],
+    k:['use after free|format string|integer overflow|heap spray|rop|return oriented programming|buffer over read|heartbleed'],
+    l:['type confusion|prototype pollution|ssti|server side template injection|request smuggling|http request smuggling|log4shell|jndi injection']}}
+];
+
+</script>
+<script>// Canvas ocean scene. All art drawn in code. No external assets.
+const Scene = (function(){
+  const cv = document.getElementById('sea'); const ctx = cv.getContext('2d');
+  let W=0,H=0,DPR=1; const SCALE=0.42; const MAXD=7000, FLOOR=7150;
+  const st = {depth:0, vel:0, t:0, flicker:0, shake:0, glow:0, glowCol:'#fff', reduced:false, subX:.5, subYr:.74};
+  function mulberry(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+  const KEYS=[[0,[88,208,238]],[600,[42,163,216]],[1200,[27,111,176]],[2200,[21,61,120]],[3500,[14,34,80]],[5000,[10,18,56]],[6500,[26,11,54]],[7300,[16,6,31]]];
+  function colAt(d){d=Math.max(0,Math.min(7300,d));for(let i=1;i<KEYS.length;i++){if(d<=KEYS[i][0]){const a=KEYS[i-1],b=KEYS[i];const f=(d-a[0])/(b[0]-a[0]);return a[1].map((v,j)=>Math.round(v+(b[1][j]-v)*f))}}return KEYS[KEYS.length-1][1]}
+  const rgb=c=>`rgb(${c[0]},${c[1]},${c[2]})`;
+  // world creatures
+  const world=[]; (function(){const r=mulberry(7);let d=120,whales=0;
+    const pools=[[1000,['fish','school','krill','packet','jelly','fish']],[2500,['fish','school','jelly','whale','packet','jelly']],[4500,['jelly','angler','packet','rack','school','angler']],[6500,['angler','jelly','kraken','lock','packet','eye']],[9999,['eye','kraken','angler','packet','eye']]];
+    while(d<7080){let pool=pools.find(p=>d<p[0])[1];let type=pool[Math.floor(r()*pool.length)];if(type==='whale'){if(whales>=2)type='fish';else whales++}
+      world.push({d,x:r(),dir:r()<.5?-1:1,sp:.012+r()*.035,size:.75+r()*.7,seed:r()*1000,type,hue:Math.floor(r()*360)});d+=85+r()*150}})();
+  // particles
+  const snow=[];const bub=[];const fx=[];
+  function initSnow(){snow.length=0;const n=st.reduced?40:90;for(let i=0;i<n;i++)snow.push({x:Math.random(),y:Math.random()*2000,z:.25+Math.random()*.9,r:.8+Math.random()*1.8,ph:Math.random()*6})}
+  function resize(){DPR=Math.min(window.devicePixelRatio||1,2);W=window.innerWidth;H=window.innerHeight;cv.width=W*DPR;cv.height=H*DPR;ctx.setTransform(DPR,0,0,DPR,0,0)}
+  window.addEventListener('resize',resize);resize();initSnow();
+
+  const U=()=>Math.max(52,Math.min(104,Math.min(W,H)*.115));
+  function subPos(){return {x:W*st.subX,y:H*st.subYr+Math.sin(st.t*1.7)*5}}
+  function wline(){return H*st.subYr-st.depth*SCALE}
+
+  function drawSky(wy){
+    if(wy<=0)return;
+    const g=ctx.createLinearGradient(0,0,0,wy);g.addColorStop(0,'#6cc7ff');g.addColorStop(.7,'#bfeaff');g.addColorStop(1,'#fff0c9');ctx.fillStyle=g;ctx.fillRect(0,0,W,wy+2);
+    const sx=W*.8,sy=Math.max(wy*.35,60);const sg=ctx.createRadialGradient(sx,sy,10,sx,sy,130);sg.addColorStop(0,'rgba(255,248,200,1)');sg.addColorStop(.25,'rgba(255,240,170,.8)');sg.addColorStop(1,'rgba(255,240,170,0)');ctx.fillStyle=sg;ctx.fillRect(sx-140,sy-140,280,280);
+    ctx.fillStyle='#fffbe0';ctx.beginPath();ctx.arc(sx,sy,34,0,7);ctx.fill();
+    ctx.fillStyle='rgba(255,255,255,.9)';for(let i=0;i<4;i++){const cx=((i*.31+st.t*.004*(1+i*.2))%1.3-.15)*W,cy=wy*(.18+i*.13);for(let k=0;k<4;k++){ctx.beginPath();ctx.ellipse(cx+k*28,cy+(k%2)*8,40-k*4,18,0,0,7);ctx.fill()}}
+    // little sailboat
+    const bx=W*.66+Math.sin(st.t*.3)*14,by=wy-2;ctx.save();ctx.translate(bx,by);ctx.rotate(Math.sin(st.t*1.2)*.03);ctx.fillStyle='#7a3b1e';ctx.beginPath();ctx.moveTo(-34,-10);ctx.lineTo(34,-10);ctx.lineTo(24,6);ctx.lineTo(-24,6);ctx.fill();ctx.fillStyle='#fff';ctx.beginPath();ctx.moveTo(0,-14);ctx.lineTo(0,-64);ctx.lineTo(26,-16);ctx.fill();ctx.fillStyle='#ff6b5a';ctx.beginPath();ctx.moveTo(-3,-16);ctx.lineTo(-3,-52);ctx.lineTo(-24,-16);ctx.fill();ctx.restore();
+  }
+  function drawWater(wy){
+    const top=-st.subYr*H/SCALE, c1=colAt(st.depth-H*st.subYr/SCALE*1.0), c2=colAt(st.depth+H*(1-st.subYr)/SCALE);
+    const y0=Math.max(0,wy);const g=ctx.createLinearGradient(0,y0,0,H);g.addColorStop(0,rgb(c1));g.addColorStop(1,rgb(c2));ctx.fillStyle=g;ctx.fillRect(0,y0,W,H-y0);
+    if(wy>-40&&wy<H){ // wave band
+      ctx.fillStyle='rgba(255,255,255,.35)';ctx.beginPath();ctx.moveTo(0,wy+8);for(let x=0;x<=W;x+=12)ctx.lineTo(x,wy+Math.sin(x*.02+st.t*1.6)*4);ctx.lineTo(W,wy+14);ctx.lineTo(0,wy+14);ctx.fill();
+      ctx.strokeStyle='rgba(255,255,255,.75)';ctx.lineWidth=2;ctx.beginPath();for(let x=0;x<=W;x+=10){const y=wy+Math.sin(x*.02+st.t*1.6)*4;x?ctx.lineTo(x,y):ctx.moveTo(x,y)}ctx.stroke();
+    }
+  }
+  function drawRays(wy){
+    const a=Math.max(0,.2*(1-st.depth/2600));if(a<=.01)return;const y0=Math.max(0,wy);
+    ctx.save();ctx.globalCompositeOperation='lighter';for(let i=0;i<6;i++){const bx=W*(.08+i*.18)+Math.sin(st.t*.25+i)*30;const g=ctx.createLinearGradient(0,y0,0,y0+H*.9);g.addColorStop(0,`rgba(220,255,255,${a})`);g.addColorStop(1,'rgba(220,255,255,0)');ctx.fillStyle=g;ctx.beginPath();ctx.moveTo(bx,y0);ctx.lineTo(bx+50,y0);ctx.lineTo(bx+150+i*18,y0+H*.9);ctx.lineTo(bx-60+i*18,y0+H*.9);ctx.fill()}ctx.restore();
+  }
+  function drawSnow(wy){
+    const a=Math.min(.75,.18+st.depth/6000);ctx.fillStyle=`rgba(230,250,255,${a})`;
+    for(const p of snow){let y=((p.y-st.depth*SCALE*p.z+st.t*8*p.z)%(H+20)+(H+20))%(H+20)-10;let x=(p.x*W+Math.sin(st.t*.6+p.ph)*14);if(y<wy)continue;ctx.globalAlpha=Math.min(1,a*p.z+.1);ctx.beginPath();ctx.arc(x,y,p.r*p.z+.4,0,7);ctx.fill()}ctx.globalAlpha=1;
+  }
+  // --- creatures
+  const hsl=(h,s,l,a)=>`hsla(${h},${s}%,${l}%,${a==null?1:a})`;
+  function fish(x,y,s,dir,hue,t,body){ctx.save();ctx.translate(x,y);ctx.scale(dir,1);const w=Math.sin(t*6)*.25;
+    ctx.fillStyle=hsl(hue,85,58);ctx.beginPath();ctx.moveTo(-s*.8,0);ctx.lineTo(-s*1.5,-s*.5+w*s*.4);ctx.lineTo(-s*1.5,s*.5+w*s*.4);ctx.closePath();ctx.fill();
+    ctx.beginPath();ctx.ellipse(0,0,s,s*.56,0,0,7);ctx.fill();ctx.fillStyle=hsl(hue,90,78,.85);ctx.beginPath();ctx.ellipse(s*.05,s*.2,s*.8,s*.28,0,0,7);ctx.fill();
+    ctx.fillStyle=hsl(hue,85,45);ctx.beginPath();ctx.moveTo(-s*.2,-s*.5);ctx.quadraticCurveTo(0,-s*1,s*.35,-s*.5);ctx.fill();
+    ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(s*.52,-s*.12,s*.17,0,7);ctx.fill();ctx.fillStyle='#10131f';ctx.beginPath();ctx.arc(s*.57,-s*.12,s*.085,0,7);ctx.fill();ctx.restore()}
+  function school(x,y,s,dir,hue,t){for(let i=0;i<8;i++){fish(x-dir*(i%4)*s*1.3+Math.sin(t*2+i)*6,y+(Math.floor(i/4)-.5)*s*1.4+Math.cos(t*1.6+i)*5,s*.42,dir,hue+i*4,t+i)}}
+  function krill(x,y,s,t,seed){ctx.strokeStyle='#ff9d8a';ctx.lineWidth=2;ctx.lineCap='round';for(let i=0;i<22;i++){const a=seed+i*2.4,px=x+Math.cos(a)*s*1.6+Math.sin(t*2+i)*8,py=y+Math.sin(a*1.3)*s*.9+Math.cos(t*1.7+i)*6;ctx.beginPath();ctx.arc(px,py,4,.6,3.6);ctx.stroke();ctx.fillStyle='#222';ctx.fillRect(px+2,py-3,1.5,1.5)}}
+  function packet(x,y,s,t,seed){ctx.save();ctx.translate(x,y);ctx.rotate(Math.sin(t+seed)*.4);const gg=ctx.createRadialGradient(0,0,2,0,0,s*1.6);gg.addColorStop(0,'rgba(120,255,200,.6)');gg.addColorStop(1,'rgba(120,255,200,0)');ctx.fillStyle=gg;ctx.fillRect(-s*2,-s*2,s*4,s*4);
+    ctx.fillStyle='#7dffc4';ctx.strokeStyle='#0d6b57';ctx.lineWidth=2;const r=s*.5;ctx.beginPath();ctx.roundRect?ctx.roundRect(-r,-r,r*2,r*2,5):ctx.rect(-r,-r,r*2,r*2);ctx.fill();ctx.stroke();ctx.fillStyle='#0d6b57';ctx.fillRect(-r*.5,-r*.15,r,r*.3);ctx.beginPath();ctx.moveTo(r*.5,-r*.5);ctx.lineTo(r*.9,0);ctx.lineTo(r*.5,r*.5);ctx.fill();ctx.restore()}
+  function jelly(x,y,s,t,hue){const p=1+Math.sin(t*2.2)*.09;ctx.save();ctx.translate(x,y);
+    ctx.strokeStyle=hsl(hue,90,75,.7);ctx.lineWidth=3;ctx.lineCap='round';for(let i=-3;i<=3;i++){ctx.beginPath();ctx.moveTo(i*s*.22,s*.15);for(let k=1;k<=6;k++)ctx.lineTo(i*s*.22+Math.sin(t*2+k*.9+i)*s*.12,s*.15+k*s*.2);ctx.stroke()}
+    const g=ctx.createRadialGradient(0,-s*.2,s*.1,0,0,s);g.addColorStop(0,hsl(hue,95,85,.85));g.addColorStop(1,hsl(hue,90,60,.45));ctx.fillStyle=g;ctx.beginPath();ctx.ellipse(0,0,s*.8*p,s*.7/p,0,Math.PI,0);ctx.quadraticCurveTo(s*.5,s*.28,0,s*.2);ctx.quadraticCurveTo(-s*.5,s*.28,-s*.8*p,0);ctx.fill();
+    ctx.strokeStyle=hsl(hue,100,88,.9);ctx.lineWidth=2;ctx.beginPath();ctx.ellipse(0,0,s*.8*p,s*.7/p,0,Math.PI,0);ctx.stroke();ctx.restore()}
+  function angler(x,y,s,dir,t){ctx.save();ctx.translate(x,y);ctx.scale(dir,1);
+    const lx=s*1.1,ly=-s*1.15+Math.sin(t*2)*4;ctx.strokeStyle='#101a3a';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(s*.2,-s*.6);ctx.quadraticCurveTo(s*.6,-s*1.4,lx,ly);ctx.stroke();
+    const gp=.7+.3*Math.sin(t*4);const gg=ctx.createRadialGradient(lx,ly,1,lx,ly,s*1.1);gg.addColorStop(0,`rgba(255,250,170,${gp})`);gg.addColorStop(.3,`rgba(120,255,240,${.5*gp})`);gg.addColorStop(1,'rgba(120,255,240,0)');ctx.fillStyle=gg;ctx.fillRect(lx-s*1.2,ly-s*1.2,s*2.4,s*2.4);ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(lx,ly,5,0,7);ctx.fill();
+    ctx.fillStyle='#223062';ctx.beginPath();ctx.moveTo(-s*.9,0);ctx.lineTo(-s*1.6,-s*.5);ctx.lineTo(-s*1.6,s*.5);ctx.fill();ctx.beginPath();ctx.ellipse(0,0,s,s*.78,0,0,7);ctx.fill();ctx.fillStyle='#2f4690';ctx.beginPath();ctx.ellipse(-s*.1,s*.3,s*.8,s*.35,0,0,7);ctx.fill();
+    ctx.fillStyle='#0a0f26';ctx.beginPath();ctx.moveTo(s*.95,-s*.1);ctx.quadraticCurveTo(s*.3,s*.6,s*.9,s*.5);ctx.lineTo(s*.95,-s*.1);ctx.fill();ctx.fillStyle='#fff';for(let i=0;i<5;i++){ctx.beginPath();ctx.moveTo(s*(.9-i*.13),s*(.45-i*.08));ctx.lineTo(s*(.84-i*.13),s*(.2-i*.02));ctx.lineTo(s*(.78-i*.13),s*(.46-i*.08));ctx.fill()}
+    ctx.fillStyle='#ffe14d';ctx.beginPath();ctx.arc(s*.5,-s*.22,s*.2,0,7);ctx.fill();ctx.fillStyle='#000';ctx.beginPath();ctx.arc(s*.55,-s*.22,s*.09,0,7);ctx.fill();ctx.restore()}
+  function whale(x,y,s,dir,t){ctx.save();ctx.translate(x,y+Math.sin(t*.6)*8);ctx.scale(dir,1);const b=s*3;ctx.fillStyle='rgba(30,60,110,.9)';
+    ctx.beginPath();ctx.moveTo(b,0);ctx.bezierCurveTo(b*.8,-b*.42,-b*.4,-b*.42,-b*.9,-b*.06);ctx.lineTo(-b*1.25,-b*.38+Math.sin(t)*10);ctx.quadraticCurveTo(-b*1.1,-b*.05,-b*1.3,b*.3+Math.sin(t)*10);ctx.lineTo(-b*.9,b*.05);ctx.bezierCurveTo(-b*.4,b*.4,b*.8,b*.35,b,0);ctx.fill();
+    ctx.fillStyle='rgba(120,160,210,.55)';ctx.beginPath();ctx.moveTo(b*.9,b*.08);ctx.bezierCurveTo(b*.4,b*.3,-b*.3,b*.3,-b*.7,b*.08);ctx.bezierCurveTo(-b*.2,b*.2,b*.4,b*.18,b*.9,b*.08);ctx.fill();
+    ctx.fillStyle='rgba(30,60,110,.95)';ctx.beginPath();ctx.moveTo(b*.1,b*.2);ctx.lineTo(-b*.2,b*.6);ctx.lineTo(-b*.3,b*.18);ctx.fill();ctx.fillStyle='#e8f6ff';ctx.beginPath();ctx.arc(b*.62,-b*.05,5,0,7);ctx.fill();ctx.fillStyle='#08142e';ctx.beginPath();ctx.arc(b*.64,-b*.05,2.6,0,7);ctx.fill();ctx.restore()}
+  function tentacle(x0,y0,len,dir,t,seed,wd){ctx.lineCap='round';const n=26;let px=x0,py=y0;for(let i=1;i<=n;i++){const f=i/n;const ang=Math.PI*.5+Math.sin(t*.9+seed+f*3.2)*.7*f-0.1*dir*f*4;const nx=px+Math.cos(ang)*dir*len/n*1.2*(1-f*.2),ny=py-Math.abs(Math.sin(ang))*len/n*(.9)+ -f*0;
+      ctx.strokeStyle=`hsl(${290-f*20},55%,${30+f*10}%)`;ctx.lineWidth=wd*(1-f*.85);ctx.beginPath();ctx.moveTo(px,py);ctx.lineTo(nx,ny);ctx.stroke();if(i%3===0){ctx.fillStyle='rgba(255,170,230,.75)';ctx.beginPath();ctx.arc(px,py+wd*(1-f)*.2,wd*(1-f)*.18,0,7);ctx.fill()}px=nx;py=ny}}
+  function kraken(x,y,s,dir,t,seed){ctx.save();const edge=dir>0?-10:W+10;const dx=(dir>0?1:-1);ctx.globalAlpha=.95;for(let i=0;i<4;i++){tentacle(edge,y+i*s*.55-s*.8,s*(2.8+i*.3),dx,t+i,seed+i*3,s*.5)}ctx.restore()}
+  function eye(x,y,s,t,seed){const blink=Math.max(0,Math.sin(t*.7+seed)*8-7);const r=s*1.2;const g=ctx.createRadialGradient(x,y,r*.2,x,y,r*2.4);g.addColorStop(0,'rgba(255,60,200,.45)');g.addColorStop(1,'rgba(255,60,200,0)');ctx.fillStyle=g;ctx.fillRect(x-r*2.5,y-r*2.5,r*5,r*5);
+    ctx.fillStyle='#f6d34d';ctx.beginPath();ctx.ellipse(x,y,r,r*(1-blink),0,0,7);ctx.fill();ctx.fillStyle='#120018';ctx.beginPath();ctx.ellipse(x+Math.sin(t*.5+seed)*r*.2,y,r*.17,r*(.85*(1-blink)),0,0,7);ctx.fill();ctx.fillStyle='rgba(255,255,255,.7)';ctx.beginPath();ctx.arc(x-r*.3,y-r*.3,r*.12,0,7);ctx.fill()}
+  function rack(x,y,s,t,seed){ctx.save();ctx.translate(x,y);ctx.rotate(-.12);const w=s*1.1,h=s*1.9;ctx.fillStyle='#1b2a4a';ctx.strokeStyle='#4f6a99';ctx.lineWidth=3;ctx.fillRect(-w/2,-h/2,w,h);ctx.strokeRect(-w/2,-h/2,w,h);
+    for(let i=0;i<6;i++){const yy=-h/2+8+i*(h-16)/6;ctx.fillStyle='#0f1a33';ctx.fillRect(-w/2+6,yy,w-12,(h-16)/6-5);const on=Math.sin(t*3+i*1.7+seed)>0;ctx.fillStyle=on?'#6dff8a':'#2a5a38';ctx.fillRect(-w/2+10,yy+5,6,6);ctx.fillStyle=((Math.floor(t*2+i+seed))%5===0)?'#ff5a4d':'#5a2a2a';ctx.fillRect(-w/2+20,yy+5,6,6)}
+    ctx.fillStyle='rgba(60,170,120,.8)';for(let i=0;i<5;i++){ctx.beginPath();ctx.ellipse(-w/2+i*w/4,h/2,10,18+Math.sin(t+i)*3,0,Math.PI,0);ctx.fill()}ctx.restore()}
+  function lock(x,y,s,t,seed){ctx.save();ctx.translate(x,y);ctx.rotate(.18);const w=s*1.4,h=s*1.1;ctx.strokeStyle='#8f7220';ctx.lineWidth=s*.22;ctx.beginPath();ctx.arc(0,-h*.3,w*.32,Math.PI,0);ctx.stroke();ctx.fillStyle='#c79a2a';ctx.beginPath();ctx.roundRect?ctx.roundRect(-w/2,-h*.3,w,h,10):ctx.rect(-w/2,-h*.3,w,h);ctx.fill();
+    ctx.fillStyle='#10131f';ctx.beginPath();ctx.arc(0,h*.1,s*.14,0,7);ctx.fill();ctx.fillRect(-s*.05,h*.1,s*.1,s*.3);ctx.fillStyle='rgba(120,230,170,.8)';for(let i=0;i<7;i++){ctx.beginPath();ctx.arc(-w/2+i*w/6,h*.7,6+(i%3)*2,0,7);ctx.fill()}const pg=.4+.3*Math.sin(t*2+seed);ctx.fillStyle=`rgba(255,220,120,${pg*.25})`;ctx.beginPath();ctx.arc(0,0,s*1.3,0,7);ctx.fill();ctx.restore()}
+
+  function cx(c,t){const sp=c.sp*c.dir;return ((((c.x+sp*t)%1.5)+1.5)%1.5-.25)*W}
+  function drawCreatures(wy){
+    const half=H/SCALE*.8;const u=(W<700?.7:1)*58;
+    for(const c of world){const dy=c.d-st.depth;if(dy<-half||dy>half)continue;const y=H*st.subYr+dy*SCALE;if(y<wy)continue;
+      const s=u*c.size,t=st.t,x=cx(c,t);
+      switch(c.type){
+        case 'fish':fish(x,y,s*.55,c.dir,[30,170,330,50][Math.floor(c.seed)%4]+(st.depth>2500?20:0),t+c.seed);break;
+        case 'school':school(x,y,s*.5,c.dir,[190,150,40][Math.floor(c.seed)%3],t+c.seed);break;
+        case 'krill':krill(x,y,s,t,c.seed);break;
+        case 'packet':packet(x,y,s*.3,t,c.seed);break;
+        case 'jelly':jelly(x,y,s*.8,t+c.seed,[300,180,260,330][Math.floor(c.seed)%4]);break;
+        case 'angler':angler(x,y,s*.55,c.dir,t+c.seed);break;
+        case 'whale':whale(x,y,s*.9,c.dir,t+c.seed);break;
+        case 'kraken':kraken(x,y,s*.8,c.dir,t,c.seed);break;
+        case 'eye':eye(((c.x*.7)+.15)*W,y,s*.55,t,c.seed);break;
+        case 'rack':rack(((c.x*.6)+.2)*W,y,s*.8,t,c.seed);break;
+        case 'lock':lock(((c.x*.6)+.2)*W,y,s*.7,t,c.seed);break;
+      }}
+  }
+  function drawFloor(){
+    const fy=H*st.subYr+(FLOOR-st.depth)*SCALE;if(fy>H+40)return;
+    const g=ctx.createLinearGradient(0,fy-30,0,H);g.addColorStop(0,'#2a1240');g.addColorStop(1,'#08030f');ctx.fillStyle=g;ctx.beginPath();ctx.moveTo(0,H+10);ctx.lineTo(0,fy);for(let x=0;x<=W;x+=24)ctx.lineTo(x,fy+Math.sin(x*.03)*12+Math.sin(x*.011+2)*18);ctx.lineTo(W,H+10);ctx.fill();
+    // vents with tube worms
+    for(let i=0;i<5;i++){const vx=W*(.1+i*.2),vy=fy+14;const gg=ctx.createRadialGradient(vx,vy-20,4,vx,vy-20,90);gg.addColorStop(0,'rgba(255,120,60,.55)');gg.addColorStop(1,'rgba(255,120,60,0)');ctx.fillStyle=gg;ctx.fillRect(vx-100,vy-120,200,200);
+      for(let k=0;k<5;k++){const hh=24+((i*7+k*5)%22);ctx.strokeStyle='#f2f2f2';ctx.lineWidth=5;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(vx+k*7-14,vy);ctx.lineTo(vx+k*7-14+Math.sin(st.t+k+i)*3,vy-hh);ctx.stroke();ctx.fillStyle='#ff3b4e';ctx.beginPath();ctx.arc(vx+k*7-14+Math.sin(st.t+k+i)*3,vy-hh,4,0,7);ctx.fill()}}
+    // treasure chest
+    const cxx=W*.5,cyy=fy+8;const pulse=.5+.5*Math.sin(st.t*2);const cg=ctx.createRadialGradient(cxx,cyy-20,5,cxx,cyy-20,130);cg.addColorStop(0,`rgba(255,235,140,${.55+pulse*.3})`);cg.addColorStop(1,'rgba(255,235,140,0)');ctx.fillStyle=cg;ctx.fillRect(cxx-140,cyy-160,280,260);
+    ctx.fillStyle='#7a3b1e';ctx.fillRect(cxx-34,cyy-30,68,30);ctx.fillStyle='#a8571f';ctx.beginPath();ctx.ellipse(cxx,cyy-30,34,20,0,Math.PI,0);ctx.fill();ctx.fillStyle='#ffd24d';ctx.fillRect(cxx-34,cyy-34,68,6);ctx.fillRect(cxx-6,cyy-34,12,22);
+    ctx.fillStyle='#fff';ctx.font='700 13px "Trebuchet MS",sans-serif';ctx.textAlign='center';ctx.fillText('FLAG{LEVIATHAN}',cxx,cyy-62-pulse*4);ctx.textAlign='left';
+  }
+  // sub
+  function drawSub(){
+    const p=subPos(),u=U();ctx.save();ctx.translate(p.x,p.y);ctx.rotate(Math.max(-.12,Math.min(.2,st.vel*.0002))+Math.sin(st.t*1.1)*.02);
+    if(st.flicker>0)ctx.translate((Math.random()-.5)*5,(Math.random()-.5)*3);
+    // headlight
+    const la=.12+Math.min(.45,st.depth/9000*2.4);const lg=ctx.createLinearGradient(u*1.2,0,u*5,0);lg.addColorStop(0,`rgba(255,250,200,${la*2})`);lg.addColorStop(1,'rgba(255,250,200,0)');ctx.fillStyle=lg;ctx.beginPath();ctx.moveTo(u*1.15,-u*.05);ctx.lineTo(u*5,-u*1.1);ctx.lineTo(u*5,u*1.3);ctx.lineTo(u*1.15,u*.12);ctx.fill();
+    if(st.glow>0){const gg=ctx.createRadialGradient(0,0,u*.5,0,0,u*3.2);gg.addColorStop(0,st.glowCol);gg.addColorStop(1,'rgba(255,255,255,0)');ctx.globalAlpha=Math.min(.7,st.glow);ctx.fillStyle=gg;ctx.fillRect(-u*3.3,-u*3.3,u*6.6,u*6.6);ctx.globalAlpha=1}
+    // propeller
+    ctx.save();ctx.translate(-u*1.55,u*.05);ctx.fillStyle='#b3481a';ctx.fillRect(-u*.08,-u*.1,u*.16,u*.2);const ps=Math.cos(st.t*20);ctx.fillStyle='#e8e8ef';ctx.beginPath();ctx.ellipse(-u*.1,0,u*.07,u*.5*Math.abs(ps)+u*.05,0,0,7);ctx.fill();ctx.restore();
+    // periscope + tower
+    ctx.strokeStyle='#b3481a';ctx.lineWidth=u*.07;ctx.beginPath();ctx.moveTo(u*.2,-u*.78);ctx.lineTo(u*.2,-u*1.15);ctx.lineTo(u*.5,-u*1.15);ctx.stroke();
+    ctx.fillStyle='#ffb82b';ctx.beginPath();ctx.roundRect?ctx.roundRect(-u*.35,-u*.95,u*.9,u*.35,u*.12):ctx.rect(-u*.35,-u*.95,u*.9,u*.35);ctx.fill();
+    // body
+    const bg=ctx.createLinearGradient(0,-u*.7,0,u*.7);bg.addColorStop(0,'#ffd35a');bg.addColorStop(.6,'#ffb82b');bg.addColorStop(1,'#e8891a');ctx.fillStyle=bg;ctx.beginPath();ctx.ellipse(0,0,u*1.5,u*.72,0,0,7);ctx.fill();ctx.lineWidth=3;ctx.strokeStyle='#b3481a';ctx.stroke();
+    ctx.fillStyle='#ff6b5a';ctx.beginPath();ctx.ellipse(0,u*.18,u*1.42,u*.12,0,0,7);ctx.fill();
+    ctx.fillStyle='rgba(255,255,255,.45)';ctx.beginPath();ctx.ellipse(-u*.2,-u*.5,u*.9,u*.1,-.05,0,7);ctx.fill();
+    // portholes
+    const ports=[[-.75,-.02,.2],[0,-.02,.2],[.75,-.02,.26]];ports.forEach((q,i)=>{const px=q[0]*u,py=q[1]*u,pr=q[2]*u;ctx.fillStyle='#8a3a12';ctx.beginPath();ctx.arc(px,py,pr+4,0,7);ctx.fill();ctx.fillStyle=i===2?'#b9f3ff':'#7ad7f0';ctx.beginPath();ctx.arc(px,py,pr,0,7);ctx.fill()});
+    // krill pilot in front porthole
+    const pxv=.75*u,pyv=-.02*u;ctx.save();ctx.beginPath();ctx.arc(pxv,pyv,.26*u,0,7);ctx.clip();ctx.strokeStyle='#ff8f7e';ctx.lineWidth=u*.09;ctx.lineCap='round';ctx.beginPath();ctx.arc(pxv-u*.02,pyv+u*.03,u*.14,.5,4.3);ctx.stroke();ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(pxv+u*.1,pyv-u*.06,u*.06,0,7);ctx.fill();ctx.fillStyle='#10131f';ctx.beginPath();ctx.arc(pxv+u*.12,pyv-u*.06,u*.03,0,7);ctx.fill();ctx.restore();
+    ctx.fillStyle='rgba(255,255,255,.55)';ctx.beginPath();ctx.ellipse(pxv-u*.1,pyv-u*.12,u*.07,u*.04,-.6,0,7);ctx.fill();
+    // lamp
+    ctx.fillStyle='#fff7c2';ctx.beginPath();ctx.arc(u*1.38,u*.08,u*.1,0,7);ctx.fill();
+    if(st.flicker>0){ctx.fillStyle=`rgba(255,60,60,${Math.min(.6,st.flicker)})`;ctx.beginPath();ctx.ellipse(0,0,u*1.5,u*.72,0,0,7);ctx.fill()}
+    ctx.restore();
+  }
+  function spawnBubbles(dt){const p=subPos(),u=U();if(Math.random()<dt*(st.vel>50?30:6))bub.push({x:p.x-u*1.6,y:p.y+Math.random()*u*.3,r:2+Math.random()*4,vy:30+Math.random()*40,vx:(Math.random()-.5)*14,life:1.6});}
+  function drawBubbles(dt){for(let i=bub.length-1;i>=0;i--){const b=bub[i];b.life-=dt;b.y-=b.vy*dt;b.x+=b.vx*dt+Math.sin(st.t*3+i)*.3;if(b.life<=0){bub.splice(i,1);continue}ctx.strokeStyle=`rgba(230,252,255,${Math.min(1,b.life)*.8})`;ctx.lineWidth=1.5;ctx.beginPath();ctx.arc(b.x,b.y,b.r,0,7);ctx.stroke()}}
+  function drawFx(dt){for(let i=fx.length-1;i>=0;i--){const f=fx[i];f.life-=dt;if(f.life<=0){fx.splice(i,1);continue}f.x+=f.vx*dt;f.y+=f.vy*dt;f.vy+=f.g*dt;ctx.globalAlpha=Math.max(0,Math.min(1,f.life*1.4));ctx.fillStyle=f.col;ctx.beginPath();ctx.arc(f.x,f.y,f.r,0,7);ctx.fill()}ctx.globalAlpha=1}
+  function vignette(){const a=.1+Math.min(.5,st.depth/7000*.5);const g=ctx.createRadialGradient(W/2,H*.5,Math.min(W,H)*.35,W/2,H*.5,Math.max(W,H)*.75);g.addColorStop(0,'rgba(0,0,0,0)');g.addColorStop(1,`rgba(0,0,12,${a})`);ctx.fillStyle=g;ctx.fillRect(0,0,W,H)}
+
+  // animation control
+  let anim=null,last=0,running=false;
+  function setDepth(d){st.depth=d;anim=null}
+  function animateTo(d,ms){anim={from:st.depth,to:d,t0:performance.now(),ms:st.reduced?Math.min(ms,400):ms}}
+  function burst(col,n){const p=subPos();n=st.reduced?Math.ceil(n/3):n;for(let i=0;i<n;i++){const a=Math.random()*6.28,sp=60+Math.random()*260;fx.push({x:p.x+Math.cos(a)*10,y:p.y+Math.sin(a)*10,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp-80,g:160,r:2+Math.random()*5,col,life:.9+Math.random()*.8})}st.glow=1;st.glowCol=col}
+  function frame(now){
+    const dt=Math.min(.05,(now-last)/1000||.016);last=now;st.t+=dt;
+    if(anim){const f=Math.min(1,(now-anim.t0)/anim.ms);const e=f<.5?4*f*f*f:1-Math.pow(-2*f+2,3)/2;const nd=anim.from+(anim.to-anim.from)*e;st.vel=(nd-st.depth)/Math.max(dt,.001);st.depth=nd;if(f>=1)anim=null}else st.vel*=.9;
+    st.flicker=Math.max(0,st.flicker-dt);st.glow=Math.max(0,st.glow-dt*1.2);st.shake=Math.max(0,st.shake-dt*2);
+    ctx.save();if(st.shake>0&&!st.reduced)ctx.translate((Math.random()-.5)*st.shake*14,(Math.random()-.5)*st.shake*14);
+    const wy=wline();ctx.clearRect(-20,-20,W+40,H+40);
+    drawWater(wy);drawSky(wy);drawRays(wy);drawCreatures(wy);drawFloor();drawSnow(wy);spawnBubbles(dt);drawBubbles(dt);drawSub();drawFx(dt);vignette();ctx.restore();
+    if(typeof Scene.onFrame==='function')Scene.onFrame(st);
+    if(running)requestAnimationFrame(frame);
+  }
+  function start(){if(running)return;running=true;last=performance.now();requestAnimationFrame(frame)}
+  return {st,start,setDepth,animateTo,burst,world,colAt,
+    shake(a){st.shake=a},flicker(){st.flicker=1.1},setReduced(v){st.reduced=v;initSnow()},
+    setSubX(x){st.subX=x},setSubY(y){st.subYr=y},stop(){running=false}};
+})();
+</script>
+<script>(function(){
+'use strict';
+const $=(s,r=document)=>r.querySelector(s);
+const TCOL=['#7ee081','#4cc9f0','#ffd23f','#ff9f1c','#ff4d6d','#c77dff'];
+const PACKS={mixed:{name:'Mixed Dive',filter:()=>true},p1:{name:'Part 1: Replay, Hash, Privilege',filter:b=>b.pack===1},p2:{name:'Part 2: Injection, Overflow, Forgery',filter:b=>b.pack===2}};
+const ZONES=[[0,'Sunlight Zone'],[1000,'Twilight Zone'],[2500,'Midnight Zone'],[4500,'Abyssal Plain'],[6500,'Packet Trench']];
+const RANKS=[[0,'Surface Skimmer'],[800,'Snorkel Scout'],[2000,'Twilight Tracker'],[3500,'Midnight Mariner'],[5000,'Abyss Admiral'],[6300,'Trench Legend'],[7000,'Packet Leviathan']];
+const store={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
+const prefersReduced=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;
+const settings=Object.assign({time:25,sound:true,reduced:prefersReduced,pack:'mixed'},store.get('dpd.settings',{}));
+function saveSettings(){store.set('dpd.settings',settings)}
+Scene.setReduced(settings.reduced);document.documentElement.classList.toggle('rm',settings.reduced);
+
+// ---------- audio
+let AC=null;
+function ac(){if(!settings.sound)return null;try{AC=AC||new (window.AudioContext||window.webkitAudioContext)();if(AC.state==='suspended')AC.resume();return AC}catch(e){return null}}
+function tone(f,d,type,v,delay){const a=ac();if(!a)return;const t=a.currentTime+(delay||0);const o=a.createOscillator(),g=a.createGain();o.type=type||'sine';o.frequency.setValueAtTime(f,t);g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(v||.12,t+.01);g.gain.exponentialRampToValueAtTime(.0001,t+d);o.connect(g).connect(a.destination);o.start(t);o.stop(t+d+.02)}
+function whoosh(){const a=ac();if(!a)return;const n=a.sampleRate*1.2,b=a.createBuffer(1,n,a.sampleRate),d=b.getChannelData(0);for(let i=0;i<n;i++)d[i]=(Math.random()*2-1)*(1-i/n);const s=a.createBufferSource();s.buffer=b;const f=a.createBiquadFilter();f.type='bandpass';f.frequency.setValueAtTime(300,a.currentTime);f.frequency.exponentialRampToValueAtTime(1400,a.currentTime+.9);const g=a.createGain();g.gain.value=.07;s.connect(f).connect(g).connect(a.destination);s.start()}
+const NOTES=[523.25,659.25,783.99,1046.5,1318.5,1568];
+function tierSound(ti){if(ti<0){tone(150,.35,'sawtooth',.1);tone(110,.4,'sawtooth',.1,.12);return}whoosh();for(let i=0;i<=ti;i++)tone(NOTES[i],.28+ti*.04,ti>3?'triangle':'sine',.1,i*.07);if(ti===5){tone(2093,.7,'sine',.07,.5);tone(1568,.7,'sine',.07,.5)}}
+function tick(){tone(1100,.05,'square',.04)}
+
+// ---------- state
+const S={mode:'daily',pack:'mixed',prompts:[],i:0,pts:0,tiers:[],answers:[],names:[],phase:'idle',remaining:25,limit:25,key:''};
+const todayKey=()=>{const q=new URLSearchParams(location.search).get('day');if(q&&/^\d{4}-\d{2}-\d{2}$/.test(q))return q;const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
+function mulberry(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+function hash(s){let h=2166136261;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619)}return h>>>0}
+function pick(pool,rand,n){const a=pool.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(rand()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a.slice(0,n)}
+const fmt=n=>n.toLocaleString('en-US');
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
+function zoneAt(d){let z=ZONES[0][1];for(const q of ZONES)if(d>=q[0])z=q[1];return z}
+function rankFor(d){let r=RANKS[0][1];for(const q of RANKS)if(d>=q[0])r=q[1];return r}
+
+// ---------- screens
+const el={title:$('#title'),play:$('#play'),results:$('#results'),hud:$('#hud'),gauge:$('#gauge')};
+function show(name){for(const k of ['title','play','results'])el[k].hidden=(k!==name);el.hud.hidden=(name!=='play');el.gauge.hidden=(name!=='play');
+  Scene.setSubY(name==='title'?.86:.8);Scene.setSubX(name==='title'?(window.innerWidth>900?.17:.5):.5)}
+function toast(t){const d=document.createElement('div');d.className='toast';d.textContent=t;document.body.appendChild(d);setTimeout(()=>d.remove(),2500)}
+
+// ---------- title
+function refreshTitle(){
+  const k=todayKey(),done=store.get('dpd.daily.'+k,null);
+  const b=$('#btnDaily');b.innerHTML=done?`Daily Dive ✓ <small>${fmt(done.pts*10)} m</small>`:'Daily Dive';
+  $('#dailyNote').textContent=done?'Done for today. New dive at midnight. Tap to see your results.':`Same 7 questions for everyone today (${k}). One scored try.`;
+  document.querySelectorAll('[data-pack]').forEach(c=>c.setAttribute('aria-pressed',c.dataset.pack===settings.pack));
+  Scene.setDepth(0);
+}
+const legend=$('#legend');TIERS.forEach((t,i)=>{const s=document.createElement('span');s.style.background=TCOL[i];s.textContent=`${t.name} ${t.pts}`;legend.appendChild(s)});
+document.querySelectorAll('[data-pack]').forEach(c=>c.addEventListener('click',()=>{settings.pack=c.dataset.pack;saveSettings();refreshTitle()}));
+$('#btnDaily').addEventListener('click',()=>{ac();const k=todayKey(),done=store.get('dpd.daily.'+k,null);if(done){S.mode='daily';S.prompts=dailyPrompts(k);S.tiers=done.tiers;S.answers=done.answers;S.names=done.names||[];S.pts=done.pts;showResults(true)}else startDive('daily','mixed')});
+$('#btnFree').addEventListener('click',()=>{ac();startDive('free',settings.pack)});
+$('#btnHow').addEventListener('click',()=>$('#dlgHow').showModal());
+$('#btnSet').addEventListener('click',()=>{renderSettings();$('#dlgSet').showModal()});
+$('#btnTeach').addEventListener('click',()=>{renderTeacher();$('#dlgTeach').showModal()});
+document.querySelectorAll('dialog [data-close]').forEach(b=>b.addEventListener('click',()=>b.closest('dialog').close()));
+document.querySelectorAll('dialog').forEach(d=>d.addEventListener('click',e=>{if(e.target===d)d.close()}));
+
+// ---------- dive setup
+function dailyPrompts(k){const rand=mulberry(hash('dpd'+k));return pick(BANK,rand,7)}
+function startDive(mode,pack){
+  S.mode=mode;S.pack=pack;S.i=0;S.pts=0;S.tiers=[];S.answers=[];S.names=[];S.limit=settings.time;
+  S.prompts=mode==='daily'?dailyPrompts(todayKey()):pick(BANK.filter(PACKS[pack].filter),Math.random,7);
+  show('play');Scene.setDepth(0);lastZone='';updateHud();askPrompt();
+}
+let lastZone='';
+function updateHud(){const d=Scene.st.depth;$('#hudDepth').textContent=fmt(Math.round(d));const z=zoneAt(d);$('#zone').textContent=z;if(z!==lastZone){if(lastZone)toast(z);lastZone=z}
+  $('#hudScore').textContent=fmt(S.pts)+' pts';$('#hudRound').textContent=`${Math.min(S.i+1,7)} / 7`;
+  const track=$('#gauge .track'),dot=$('#gauge .dot');const h=track.clientHeight||300;dot.style.top=(Math.min(1,d/7000)*h)+'px'}
+Scene.onFrame=function(){if(!el.play.hidden)updateHud()};
+
+// ---------- ask
+const qEl=$('#q'),inp=$('#answer'),form=$('#form'),timerBar=$('#timerBar'),timerNum=$('#timerNum'),askBox=$('#ask'),revBox=$('#reveal');
+let lastTick=0;
+function askPrompt(){
+  const p=S.prompts[S.i];S.phase='ask';S.remaining=S.limit;S.t0=performance.now();
+  askBox.hidden=false;revBox.hidden=true;qEl.textContent=p.q;$('#kick').textContent=`Question ${S.i+1} of 7`;
+  inp.value='';inp.disabled=false;inp.focus();timerBar.style.transform='scaleX(1)';timerNum.textContent=S.limit;timerBar.parentElement.setAttribute('aria-valuenow',S.limit);
+  $('#live').textContent=`Question ${S.i+1}. ${p.q}. ${S.limit} seconds.`;updateHud();
+}
+let lastT=performance.now();
+function timerLoop(now){const dt=Math.min(.1,(now-lastT)/1000);lastT=now;
+  if(S.phase==='ask'){S.remaining-=dt;const r=Math.max(0,S.remaining);timerBar.style.transform=`scaleX(${r/S.limit})`;const sec=Math.ceil(r);if(String(sec)!==timerNum.textContent){timerNum.textContent=sec;if(sec<=5&&sec>0)tick()}
+    if(S.remaining<=0)submit('',true)}
+  requestAnimationFrame(timerLoop)}
+requestAnimationFrame(timerLoop);
+form.addEventListener('submit',e=>{e.preventDefault();if(S.phase==='ask')submit(inp.value,false)});
+$('#btnPass').addEventListener('click',()=>{if(S.phase==='ask')submit('',false)});
+
+// ---------- submit + reveal
+function logMiss(p,ans){if(!ans.trim())return;const m=store.get('dpd.misses',[]);m.push({id:p.id,a:ans.trim().slice(0,80),t:Date.now()});store.set('dpd.misses',m.slice(-600))}
+function submit(raw,timedOut){
+  if(S.phase!=='ask')return;S.phase='reveal';inp.disabled=true;
+  const p=S.prompts[S.i];const r=matchAnswer(p,raw);const ti=r.ti;
+  const pts=ti>=0?TIERS[ti].pts:0;
+  if(ti<0)logMiss(p,raw);
+  S.pts+=pts;S.tiers.push(ti);S.answers.push(timedOut?'(time up)':(raw.trim()||'(passed)'));S.names.push(r.name||'');
+  Scene.animateTo(S.pts*10,pts?1900:300);tierSound(ti);
+  if(ti>=0){Scene.burst(TCOL[ti],20+ti*18);if(ti>=4)Scene.shake(.6+(ti-4)*.4)}else{Scene.flicker();Scene.shake(.35)}
+  renderReveal(p,r,pts,timedOut,raw);
+}
+function topNames(p,skipTi){const out=[];for(const k of ['l','k','b']){const arr=p.t[k]||[];if(arr.length&&TIERS.findIndex(t=>t.k===k)>skipTi){out.push(arr.slice(0,2).map(x=>x.split('|')[0]).join(', '))}if(out.length)break}return out[0]||''}
+function renderReveal(p,r,pts,timedOut,raw){
+  askBox.hidden=true;revBox.hidden=false;revBox.className='center'+(r.ti===5?' lv5':'');
+  const T=r.ti>=0?TIERS[r.ti]:null;
+  const badge=T?`<div class="badge" style="background:${TCOL[r.ti]};color:#10131f">${T.name}</div>`:`<div class="badge" style="background:#ff5a4d;color:#fff">${timedOut?'Time up':(r.how==='vague'?'Too vague':'No signal')}</div>`;
+  const sub=T?`<div class="pts">+${T.pts} pts &nbsp;·&nbsp; +${fmt(T.pts*10)} m</div><div class="matched">You said “${esc(raw.trim())}”${r.how==='close'?` · counted as <b>${esc(r.name)}</b>`:''}</div>`
+    :`<div class="pts">+0 pts</div><div class="matched">${timedOut?'The clock ran out.':(raw.trim()?`“${esc(raw.trim())}” was not on the answer list. It may still be right: your teacher can review misses.`:'You passed.')}</div>`;
+  const top=(r.ti<5)?topNames(p,r.ti):'';
+  revBox.innerHTML=`${badge}${sub}<div class="note"><b>Why:</b> ${esc(p.note)}</div>${top?`<div class="deeper">🔱 Deeper answers existed, like: <b>${esc(top)}</b></div>`:'<div class="deeper">🔱 You found the deepest tier!</div>'}<div class="src">${esc(p.src)}</div><button class="btn big" id="btnNext" type="button">${S.i>=6?'See my dive':'Next question'} →</button>`;
+  $('#btnNext').addEventListener('click',next);$('#btnNext').focus();
+  $('#live').textContent=(T?`${T.name}. ${pts} points.`:'No signal. Zero points.')+' '+p.note;
+}
+function next(){if(S.phase!=='reveal')return;S.i++;if(S.i>=7){finish();return}askPrompt()}
+
+// ---------- results
+function finish(){S.phase='done';if(S.mode==='daily')store.set('dpd.daily.'+todayKey(),{pts:S.pts,tiers:S.tiers,answers:S.answers,names:S.names});
+  const hist=store.get('dpd.best',0);if(S.pts*10>hist)store.set('dpd.best',S.pts*10);showResults(false)}
+function shareText(){return `Deep Packet Dive ${S.mode==='daily'?todayKey():'(free dive)'}\n🌊 ${fmt(S.pts*10)} m · ${rankFor(S.pts*10)}\n${S.tiers.map(t=>t<0?'⬛':TIERS[t].emoji).join('')}`}
+function showResults(fromTitle){
+  show('results');const d=S.pts*10;Scene.setDepth(d);Scene.setSubY(.82);
+  const rv=S.prompts.map((p,i)=>{const t=S.tiers[i];const c=t>=0?TCOL[t]:'#ff5a4d';const tn=t>=0?`${TIERS[t].name} (${TIERS[t].pts})`:'No signal (0)';const top=(t<5)?topNames(p,t):'';
+    return `<div class="rv" style="--c:${c}"><h4>${i+1}. ${esc(p.q)}</h4><p>You: <em>${esc(S.answers[i]||'')}</em> → ${tn}${top?`<br>Deeper: ${esc(top)}`:''}<br><span style="opacity:.7">${esc(p.src)}</span></p></div>`}).join('');
+  $('#results').innerHTML=`<div class="panel rcard"><div class="rank">${rankFor(d)}</div><div class="bigdepth" id="bigD">0 m</div><div class="chips">${S.tiers.map((t,i)=>`<b title="Q${i+1}" style="background:${t>=0?TCOL[t]:'#ff5a4d'}">${t>=0?TIERS[t].pts:'0'}</b>`).join('')}</div>
+  <div class="share" id="shareBox">${esc(shareText())}</div>
+  <div class="row" style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap"><button class="btn alt" id="btnCopy">Copy score</button><button class="btn" id="btnAgain">Free dive</button><button class="btn ghost" id="btnMenu">Menu</button></div>
+  <h3 style="font-family:var(--disp);margin:1.2em 0 .2em">Study the dive</h3><div class="review">${rv}</div></div>`;
+  const big=$('#bigD');const t0=performance.now(),ms=fromTitle?300:1400;(function c(n){const f=Math.min(1,(n-t0)/ms);big.textContent=fmt(Math.round(d*f))+' m';if(f<1)requestAnimationFrame(c)})(t0);
+  $('#btnCopy').addEventListener('click',async()=>{try{await navigator.clipboard.writeText(shareText());toast('Score copied')}catch(e){toast('Select the box and copy')}});
+  $('#btnAgain').addEventListener('click',()=>{startDive('free',settings.pack)});
+  $('#btnMenu').addEventListener('click',()=>{show('title');refreshTitle()});
+  el.results.scrollTop=0;$('#live').textContent=`Dive complete. ${fmt(d)} meters. ${rankFor(d)}.`;
+}
+
+// ---------- settings + teacher
+function renderSettings(){
+  $('#setBody').innerHTML=`<div class="set"><label for="setTime"><b>Time per question</b><br><small>Extra time for accommodations.</small></label><select id="setTime"><option value="25">25 s (standard)</option><option value="40">40 s</option><option value="60">60 s</option><option value="90">90 s</option></select>
+  <label for="setSound"><b>Sound</b></label><input type="checkbox" id="setSound"><label for="setRm"><b>Reduce motion</b><br><small>Fewer particles, no screen shake.</small></label><input type="checkbox" id="setRm"></div>`;
+  $('#setTime').value=String(settings.time);$('#setSound').checked=settings.sound;$('#setRm').checked=settings.reduced;
+  $('#setTime').onchange=e=>{settings.time=+e.target.value;saveSettings()};
+  $('#setSound').onchange=e=>{settings.sound=e.target.checked;saveSettings()};
+  $('#setRm').onchange=e=>{settings.reduced=e.target.checked;saveSettings();Scene.setReduced(settings.reduced);document.documentElement.classList.toggle('rm',settings.reduced)};
+}
+function missAgg(){const m=store.get('dpd.misses',[]);const agg=new Map();m.forEach(x=>{const k=x.id+'\u0001'+x.a.toLowerCase();const o=agg.get(k)||{id:x.id,a:x.a,n:0};o.n++;agg.set(k,o)});return [...agg.values()].sort((a,b)=>b.n-a.n)}
+function renderTeacher(){
+  const agg=missAgg();const byId=Object.fromEntries(BANK.map(b=>[b.id,b]));
+  const rows=agg.slice(0,80).map(o=>`<tr><td>${o.n}</td><td>${esc(o.a)}</td><td>${esc((byId[o.id]||{}).q||o.id)}</td></tr>`).join('');
+  const bank=BANK.map(b=>`<details><summary>${esc(b.q)} <small style="opacity:.7">(${esc(b.src)})</small></summary><table>${TIERS.map((t,i)=>`<tr><td style="color:${TCOL[i]};white-space:nowrap"><b>${t.name} ${t.pts}</b></td><td>${(b.t[t.k]||[]).map(x=>esc(x.split('|')[0])).join(', ')||'<i>none</i>'}</td></tr>`).join('')}</table></details>`).join('');
+  $('#teachBody').innerHTML=`<p>Misses log in <b>this browser only</b>. Review them, then add good ones as aliases in <code>BANK</code> (content.js) and rebuild. Spoiler warning: the answer bank is below.</p>
+  <h3>Missed answers (${agg.length})</h3>${agg.length?`<table><tr><th>#</th><th>Answer typed</th><th>Question</th></tr>${rows}</table>`:'<p><i>No misses yet.</i></p>'}
+  <div style="display:flex;gap:10px;margin:12px 0;flex-wrap:wrap"><button class="btn alt" id="tCopy">Copy misses (TSV)</button><button class="btn ghost" id="tClear">Clear log</button><button class="btn ghost" id="tReset">Reset today's daily</button></div>
+  <h3>Answer bank (${BANK.length} questions)</h3>${bank}`;
+  $('#tCopy').onclick=async()=>{const t='count\tanswer\tquestion\n'+agg.map(o=>`${o.n}\t${o.a}\t${(byId[o.id]||{}).q||o.id}`).join('\n');try{await navigator.clipboard.writeText(t);toast('Copied')}catch(e){toast('Copy blocked')}};
+  $('#tClear').onclick=()=>{store.set('dpd.misses',[]);renderTeacher()};
+  $('#tReset').onclick=()=>{try{localStorage.removeItem('dpd.daily.'+todayKey())}catch(e){}refreshTitle();toast('Daily reset')};
+}
+// mute button
+$('#btnMute').addEventListener('click',()=>{settings.sound=!settings.sound;saveSettings();$('#btnMute').textContent=settings.sound?'🔊':'🔇';$('#btnMute').setAttribute('aria-pressed',!settings.sound)});
+$('#btnMute').textContent=settings.sound?'🔊':'🔇';
+let quitArm=0;$('#btnQuit').addEventListener('click',()=>{const b=$('#btnQuit');if(quitArm){clearTimeout(quitArm);quitArm=0;b.textContent='✕';S.phase='idle';show('title');refreshTitle();return}
+  b.textContent='Quit?';quitArm=setTimeout(()=>{quitArm=0;b.textContent='✕'},3000)});
+document.addEventListener('keydown',e=>{if(e.key==='Enter'&&S.phase==='reveal'&&!el.play.hidden&&document.activeElement.id!=='btnNext'){e.preventDefault();next()}});
+show('title');refreshTitle();Scene.start();
+window.__dpd={S,BANK,TIERS,startDive,store};
+})();
+</script>
+</body>
+</html>
